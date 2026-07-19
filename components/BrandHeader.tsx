@@ -29,9 +29,9 @@ export function BrandHeader({ admin = false }: { admin?: boolean }) {
         <div className="container header-inner">
           {branding.logoLink
             ? <a className={brandClass} href={branding.logoLink} aria-label="Acessar o site configurado para a marca">{brandContent}</a>
-            : <Link className={brandClass} href="/" aria-label="MecDigital — página inicial">{brandContent}</Link>}
+            : <Link className={brandClass} href="/registro/consulta" aria-label="MecDigital — página inicial">{brandContent}</Link>}
           <nav aria-label="Navegação principal">
-            <Link href="/">Consulta</Link>
+            <Link href="/registro/consulta">Consulta</Link>
             <Link href="/acessibilidade">Acessibilidade</Link>
             {admin && <Link href="/admin">Administração</Link>}
           </nav>

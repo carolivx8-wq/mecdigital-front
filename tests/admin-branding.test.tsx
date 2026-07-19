@@ -36,6 +36,13 @@ describe("admin login safety", () => {
 });
 
 describe("configurable brand", () => {
+  it("points the default brand and consultation link to the public record route", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: { logoUrl: null, logoLink: null } }), { status: 200 }));
+    render(<BrandHeader />);
+    expect(screen.getByRole("link", { name: "MecDigital — página inicial" })).toHaveAttribute("href", "/registro/consulta");
+    expect(screen.getByRole("link", { name: "Consulta" })).toHaveAttribute("href", "/registro/consulta");
+  });
+
   it("replaces the textual brand when a logo is configured", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: { logoUrl: "https://cdn.example/logo.png", logoLink: "https://example.com/destino" } }), { status: 200 }));
     render(<BrandHeader />);

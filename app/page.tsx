@@ -1,6 +1,5 @@
-import { BrandHeader } from "@/components/BrandHeader";
-import { PublicLookup } from "@/components/PublicLookup";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return <><BrandHeader /><PublicLookup /></>;
+  redirect("/registro/consulta");
 }
