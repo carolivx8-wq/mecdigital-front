@@ -1,4 +1,5 @@
 export interface PublicRecord {
+  consultedAt?: string;
   student: {
     name: string;
     birthDate: string;

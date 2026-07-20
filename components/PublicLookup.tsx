@@ -9,6 +9,14 @@ function DataLine({ label, value }: { label: string; value: string | null }) {
   return <p><strong>{label}:</strong> {value}</p>;
 }
 
+function formatDate(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR");
+}
+
+function formatConsultedAt(value: string) {
+  return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" });
+}
+
 export function PublicLookup() {
   const [protocol, setProtocol] = useState("");
   const [record, setRecord] = useState<PublicRecord | null>(null);
@@ -58,16 +66,17 @@ export function PublicLookup() {
       {record && (
         <section className="result" aria-live="polite">
           <div className="result-heading"><span className="status-dot" /> Registro localizado</div>
+          {record.consultedAt && <p className="consulted-at"><strong>Consulta realizada em:</strong> {formatConsultedAt(record.consultedAt)}</p>}
           <div className="record-grid">
             <article className="data-card">
               <h2>Dados do aluno</h2>
               <DataLine label="Nome" value={record.student.name} />
-              <DataLine label="Data de nascimento" value={record.student.birthDate} />
+              <DataLine label="Data de nascimento" value={formatDate(record.student.birthDate)} />
               <DataLine label={record.student.documentType} value={record.student.documentNumber} />
               <DataLine label="Nome da mãe" value={record.student.motherName} />
               <DataLine label="Nome do pai" value={record.student.fatherName} />
               <DataLine label="Nível de ensino" value={record.student.educationLevel} />
-              <DataLine label="Data de conclusão" value={new Date(`${record.student.completionDate}T00:00:00`).toLocaleDateString("pt-BR")} />
+              <DataLine label="Data de conclusão" value={formatDate(record.student.completionDate)} />
               <DataLine label="Observações" value={record.student.notes} />
             </article>
             <article className="data-card">

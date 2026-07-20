@@ -11,6 +11,7 @@ export class ApiError extends Error {
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
+    cache: "no-store",
     headers: { "content-type": "application/json", ...init?.headers }
   });
   const payload = await response.json().catch(() => ({}));
@@ -37,6 +38,7 @@ function adminHeaders(token: string) { return { authorization: `Bearer ${token}`
 export async function uploadBrandLogo(token: string, file: File): Promise<{ logoUrl: string }> {
   const response = await fetch(`${API_URL}/api/v1/admin/branding/logo`, {
     method: "PUT",
+    cache: "no-store",
     headers: { authorization: `Bearer ${token}`, "content-type": file.type },
     body: file
   });

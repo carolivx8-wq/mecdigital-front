@@ -23,6 +23,7 @@ export function AdminPanel() {
   const [loginPassword, setLoginPassword] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoLink, setLogoLink] = useState("");
+  const [updatingRecordId, setUpdatingRecordId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"new" | "records" | "branding">("new");
 
   async function refresh(accessToken: string) {
@@ -65,12 +66,12 @@ export function AdminPanel() {
   }
 
   async function restoreLogo() {
-    if (!token || !confirm("Restaurar a marca textual MecDigital?")) return;
+    if (!token || !confirm("Remover a logo atual? A área da marca ficará em branco.")) return;
     setLoading(true); setMessage("");
     try {
       await deleteBrandLogo(token);
       window.dispatchEvent(new CustomEvent("branding-updated", { detail: { logoUrl: null } }));
-      setLogoFile(null); setMessage("Marca textual restaurada.");
+      setLogoFile(null); setMessage("Logo removida. A área da marca ficará em branco.");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel restaurar a marca."); }
     finally { setLoading(false); }
   }
@@ -100,9 +101,18 @@ export function AdminPanel() {
     finally { setLoading(false); }
   }
 
-  async function archive(record: AdminRecord) {
-    if (!token || !confirm(`Arquivar o registro de ${record.student_name}?`)) return;
-    await updateRecord(token, record.id, { status: "archived" }); await refresh(token);
+  async function setRecordBlocked(record: AdminRecord, blocked: boolean) {
+    if (!token || !confirm(`${blocked ? "Bloquear" : "Desbloquear"} o registro de ${record.student_name}?`)) return;
+    setUpdatingRecordId(record.id); setMessage("");
+    try {
+      await updateRecord(token, record.id, { status: blocked ? "archived" : "active" });
+      await refresh(token);
+      setMessage(`Registro de ${record.student_name} ${blocked ? "bloqueado" : "desbloqueado"} com sucesso.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível atualizar o status do registro.");
+    } finally {
+      setUpdatingRecordId(null);
+    }
   }
 
   async function copyProtocol(record: AdminRecord) {
@@ -141,7 +151,7 @@ export function AdminPanel() {
         <div className="branding-actions">
           <label className="file-field">Imagem da logo<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setLogoFile(event.target.files?.[0] ?? null)} /></label>
           <button type="button" className="primary-button" disabled={loading || !logoFile} onClick={() => void saveLogo()}>Salvar logo</button>
-          <button type="button" className="secondary-button" disabled={loading} onClick={() => void restoreLogo()}>Restaurar padrão</button>
+          <button type="button" className="secondary-button" disabled={loading} onClick={() => void restoreLogo()}>Remover logo</button>
         </div>
         <div className="branding-link-row">
           <label>Link de destino da logo<input type="url" value={logoLink} onChange={(event) => setLogoLink(event.target.value)} placeholder="https://seusite.com.br" /></label>
@@ -167,7 +177,7 @@ export function AdminPanel() {
         </form>
       </section>}
       {activeTab === "records" && <section className="admin-card"><div className="section-title"><h2>Registros cadastrados</h2><span>{records.length} resultado(s)</span></div>
-        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={6}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Arquivado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><button className="table-action" onClick={() => { setEditing(record); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button>{record.status === "active" && <button className="table-action danger" onClick={() => archive(record)}>Arquivar</button>}</td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={6}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><button className="table-action" onClick={() => { setEditing(record); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button><button className={`table-action ${record.status === "active" ? "danger" : ""}`} disabled={updatingRecordId === record.id} onClick={() => void setRecordBlocked(record, record.status === "active")}>{record.status === "active" ? "Bloquear" : "Desbloquear"}</button></td></tr>)}</tbody></table></div>
       </section>}
     </main>
   );

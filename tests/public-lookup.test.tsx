@@ -4,9 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PublicLookup } from "@/components/PublicLookup";
 
 const record = {
-  student: { name: "Sa**** Ma***", birthDate: "**/**/1979", documentType: "RG", documentNumber: "***3438", motherName: "Zi***", fatherName: "Pa***", educationLevel: "Enfermagem", completionDate: "2025-12-19", notes: "APROVADO" },
+  student: { name: "Samara Maria Teixeira Fernandes", birthDate: "1979-03-16", documentType: "RG", documentNumber: "35383438", motherName: "Zilma Teixeira de Farias", fatherName: "Paulo Fernandes de Farias", educationLevel: "Enfermagem", completionDate: "2025-12-19", notes: "APROVADO" },
   institution: { name: "Universidade Exemplo", creationAct: "Decreto 123", publicationText: "Publicação processada" },
-  downloads: { pdf: "blocked", xml: "blocked" }
+  downloads: { pdf: "blocked", xml: "blocked" },
+  consultedAt: "2026-07-19T15:42:30.000Z"
 };
 
 afterEach(() => vi.restoreAllMocks());
@@ -29,15 +30,17 @@ describe("PublicLookup", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Protocolo não encontrado");
   });
 
-  it("renders the masked result and only the two document actions", async () => {
+  it("renders the full approved result, consultation date and the two document actions", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: record }), { status: 200 }));
     render(<PublicLookup />);
     await userEvent.type(screen.getByLabelText(/número do protocolo/i), "MEC-0123456789ABCDEF01234567");
     await userEvent.click(screen.getByRole("button", { name: "Consultar" }));
-    expect(await screen.findByText("Sa**** Ma***")).toBeInTheDocument();
+    expect(await screen.findByText("Samara Maria Teixeira Fernandes")).toBeInTheDocument();
+    expect(screen.getByText(/consulta realizada em/i).closest("p")).toHaveTextContent("19/07/2026");
+    expect(screen.getByText("35383438")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /baixar em pdf/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /baixar em xml/i })).toBeInTheDocument();
-    expect(screen.queryByText("Samara Maria Teixeira Fernandes")).not.toBeInTheDocument();
+    expect(screen.queryByText(/\*\*\*/)).not.toBeInTheDocument();
   });
 
   it("shows the blocked protocol dialog after a download attempt", async () => {

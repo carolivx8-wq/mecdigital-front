@@ -7,6 +7,14 @@ import { getBranding } from "@/lib/api";
 type Branding = { logoUrl: string | null; logoLink: string | null };
 const defaultBranding: Branding = { logoUrl: null, logoLink: null };
 
+const externalLinks = [
+  ["Simplifique", "https://www.simplifique.gov.br/"],
+  ["Participe", "https://brasilparticipativo.presidencia.gov.br/"],
+  ["Acesso à informação", "https://informabr.cgu.gov.br/"],
+  ["Legislação", "https://www4.planalto.gov.br/legislacao"],
+  ["Canais", "https://www.gov.br/pt-br/canais-do-executivo-federal"]
+] as const;
+
 export function BrandHeader({ admin = false }: { admin?: boolean }) {
   const [branding, setBranding] = useState<Branding>(defaultBranding);
 
@@ -17,26 +25,29 @@ export function BrandHeader({ admin = false }: { admin?: boolean }) {
     return () => window.removeEventListener("branding-updated", update);
   }, []);
 
-  const brandContent = branding.logoUrl
-    ? <img src={branding.logoUrl} alt="MecDigital" />
-    : <><span>Mec</span><strong>Digital</strong><i aria-hidden="true" /></>;
-  const brandClass = `brand${branding.logoUrl ? " brand-image" : ""}`;
+  const logo = branding.logoUrl ? <img src={branding.logoUrl} alt="MecDigital" /> : null;
 
   return (
-    <>
-      <div className="top-stripe" />
-      <header className="site-header">
-        <div className="container header-inner">
-          {branding.logoLink
-            ? <a className={brandClass} href={branding.logoLink} aria-label="Acessar o site configurado para a marca">{brandContent}</a>
-            : <Link className={brandClass} href="/registro/consulta" aria-label="MecDigital — página inicial">{brandContent}</Link>}
-          <nav aria-label="Navegação principal">
+    <header className="site-header">
+      <div className="container header-inner">
+        <div className="brand-slot">
+          {logo && (branding.logoLink
+            ? <a className="brand brand-image" href={branding.logoLink} aria-label="Acessar o site configurado para a marca">{logo}</a>
+            : <Link className="brand brand-image" href="/registro/consulta" aria-label="MecDigital — página inicial">{logo}</Link>)}
+        </div>
+        <div className="header-actions">
+          <nav className="external-menu" aria-label="Links de serviços públicos">
+            {externalLinks.map(([label, href]) => <a key={label} href={href} target="_blank" rel="noopener noreferrer">{label}</a>)}
+          </nav>
+          <nav className="local-menu" aria-label="Navegação principal">
             <Link href="/registro/consulta">Consulta</Link>
-            <Link href="/acessibilidade">Acessibilidade</Link>
             {admin && <Link href="/admin">Administração</Link>}
+            <Link className="accessibility-link" href="/acessibilidade" aria-label="Acessibilidade">
+              <img src="/accessibility-icon.svg" alt="" aria-hidden="true" />
+            </Link>
           </nav>
         </div>
-      </header>
-    </>
+      </div>
+    </header>
   );
 }
