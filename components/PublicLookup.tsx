@@ -36,9 +36,11 @@ export function PublicLookup() {
     try {
       const foundRecord = await lookupProtocol(normalizedProtocol);
       setRecord(foundRecord);
-      setModalOpen(foundRecord.blocked);
     }
-    catch (error) { setMessage(error instanceof ApiError && error.code === "PROTOCOL_NOT_FOUND" ? "Protocolo não encontrado. Confira o código informado." : error instanceof Error ? error.message : "Não foi possível consultar agora."); }
+    catch (error) {
+      if (error instanceof ApiError && error.code === "PROTOCOL_BLOCKED") setModalOpen(true);
+      else setMessage(error instanceof ApiError && error.code === "PROTOCOL_NOT_FOUND" ? "Protocolo não encontrado. Confira o código informado." : error instanceof Error ? error.message : "Não foi possível consultar agora.");
+    }
     finally { setLoading(false); }
   }
 
@@ -103,8 +105,8 @@ export function PublicLookup() {
       )}
 
       {modalOpen && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={() => setModalOpen(false)}>
-          <section className="modal" role="dialog" aria-modal="true" aria-labelledby="blocked-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop" role="presentation">
+          <section className="modal" role="dialog" aria-modal="true" aria-labelledby="blocked-title">
             <button className="modal-close" aria-label="Fechar mensagem" onClick={() => setModalOpen(false)}>×</button>
             <div className="modal-icon" aria-hidden="true">!</div>
             <h2 id="blocked-title">Protocolo bloqueado temporariamente!</h2>

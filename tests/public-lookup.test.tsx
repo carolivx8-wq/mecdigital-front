@@ -57,12 +57,14 @@ describe("PublicLookup", () => {
     expect(await screen.findByRole("dialog")).toHaveTextContent("Protocolo bloqueado temporariamente");
   });
 
-  it("shows blocked record data and opens the warning dialog", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: { ...record, blocked: true } }), { status: 200 }));
+  it("blocks record data and keeps the warning open when the backdrop is clicked", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: "PROTOCOL_BLOCKED", message: "Protocolo bloqueado temporariamente!" } }), { status: 423 }));
     render(<PublicLookup />);
     await userEvent.type(screen.getByLabelText("Número do protocolo"), "MEC-0123456789ABCDEF01234567");
     await userEvent.click(screen.getByRole("button", { name: "Consultar" }));
-    expect(await screen.findByText("Samara Maria Teixeira Fernandes")).toBeInTheDocument();
     expect(await screen.findByRole("dialog")).toHaveTextContent("Protocolo bloqueado temporariamente");
+    await userEvent.click(screen.getByRole("presentation"));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByText("Samara Maria Teixeira Fernandes")).not.toBeInTheDocument();
   });
 });
