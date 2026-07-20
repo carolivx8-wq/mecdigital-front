@@ -14,7 +14,8 @@ function formatDate(value: string) {
 }
 
 function formatConsultedAt(value: string) {
-  return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" });
+  const date = new Date(value);
+  return `${date.toLocaleDateString("pt-BR")} ${"\u00e0s"} ${date.toLocaleTimeString("pt-BR")}`;
 }
 
 export function PublicLookup({ direct = false }: { direct?: boolean }) {
@@ -97,7 +98,7 @@ export function PublicLookup({ direct = false }: { direct?: boolean }) {
   return (
     <main id="conteudo" className="container public-main">
       <section className="lookup-hero" aria-labelledby="lookup-title">
-        <span className="eyebrow">{hero.eyebrow}</span>
+        <span className={`eyebrow ${direct ? "qr-validated-eyebrow" : ""}`}>{hero.eyebrow}</span>
         <h1 id="lookup-title" className="lookup-title"><span>{hero.title}</span>{hero.subtitle && <small>{hero.subtitle}</small>}</h1>
         <p>{hero.description}</p>
         {!direct && <form className="lookup-form" onSubmit={submit}>
@@ -145,7 +146,7 @@ export function PublicLookup({ direct = false }: { direct?: boolean }) {
               <button className="download-button" onClick={() => download("pdf")}><span>PDF</span> Baixar em PDF</button>
               <button className="download-button" onClick={() => download("xml")}><span>XML</span> Baixar em XML</button>
             </div>
-            {record.consultedAt && <p className="consulted-at"><strong>Consulta realizada em:</strong> {formatConsultedAt(record.consultedAt)}</p>}
+            {record.consultedAt && <div className="consulted-at" aria-label={`Data e Hora da Consulta: ${formatConsultedAt(record.consultedAt)}`}><strong>Data e Hora da Consulta:</strong><span>{formatConsultedAt(record.consultedAt)}</span></div>}
             <a className="back-to-top" href="#conteudo">↑ Voltar ao topo</a>
           </div>
         </section>

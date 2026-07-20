@@ -377,7 +377,7 @@ export function AdminPanel() {
           <div className="profile-photo-field wide">
             <div className="profile-photo-preview">
               {(profilePhoto?.previewUrl || editing?.profilePhotoUrl)
-                ? <img src={profilePhoto?.previewUrl ?? editing?.profilePhotoUrl ?? ""} alt="Prévia da foto de perfil" />
+                ? <img src={profilePhoto?.previewUrl ?? editing?.profilePhotoUrl ?? ""} alt="Prévia da foto de perfil" width={120} height={160} />
                 : <span aria-hidden="true">Sem foto</span>}
             </div>
             <div className="profile-photo-controls">

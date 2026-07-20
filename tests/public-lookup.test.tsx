@@ -37,10 +37,12 @@ describe("PublicLookup", () => {
     await userEvent.type(screen.getByLabelText("Número do protocolo"), "MEC-0123456789ABCDEF01234567");
     await userEvent.click(screen.getByRole("button", { name: "Consultar" }));
     expect(await screen.findByText("Samara Maria Teixeira Fernandes")).toBeInTheDocument();
-    expect(screen.getByText(/consulta realizada em/i).closest("p")).toHaveTextContent("19/07/2026");
+    const consultationStamp = screen.getByLabelText("Data e Hora da Consulta: 19/07/2026 às 12:42:30");
+    expect(consultationStamp).toHaveTextContent("Data e Hora da Consulta:");
+    expect(consultationStamp).toHaveTextContent("19/07/2026 às 12:42:30");
     expect(screen.getByText("Escolha o formato desejado para baixar o documento.")).toBeInTheDocument();
     expect(screen.queryByText("Escolha o formato desejado para solicitar o documento.")).not.toBeInTheDocument();
-    const consultedAt = screen.getByText(/consulta realizada em/i);
+    const consultedAt = screen.getByText(/data e hora da consulta/i);
     const pdfButton = screen.getByRole("button", { name: /baixar em pdf/i });
     const backToTop = screen.getByRole("link", { name: /voltar ao topo/i });
     expect(pdfButton.compareDocumentPosition(consultedAt)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
