@@ -37,9 +37,11 @@ describe("admin record status", () => {
 
     render(<AdminPanel />);
     await userEvent.click(await screen.findByRole("button", { name: "Registros" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Bloquear" }));
+    await userEvent.click(await screen.findByRole("button", { name: `Ações do registro de ${record.student_name}` }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Bloquear" }));
     expect(await screen.findByText("Bloqueado")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Desbloquear" }));
+    await userEvent.click(screen.getByRole("button", { name: `Ações do registro de ${record.student_name}` }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Desbloquear" }));
     await waitFor(() => expect(screen.getByText("Ativo")).toBeInTheDocument());
   });
 
@@ -57,11 +59,12 @@ describe("admin record status", () => {
 
     render(<AdminPanel />);
     await userEvent.click(await screen.findByRole("button", { name: "Registros" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Bloquear" }));
+    await userEvent.click(await screen.findByRole("button", { name: `Ações do registro de ${record.student_name}` }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Bloquear" }));
     expect(await screen.findByText("Não foi possível bloquear o registro.")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveClass("alert", "error");
     expect(screen.getByText("Ativo")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Bloquear" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: `Ações do registro de ${record.student_name}` })).toBeEnabled();
   });
 
   it("disables the status action while the update is pending", async () => {
@@ -84,10 +87,11 @@ describe("admin record status", () => {
 
     render(<AdminPanel />);
     await userEvent.click(await screen.findByRole("button", { name: "Registros" }));
-    const action = await screen.findByRole("button", { name: "Bloquear" });
-    await userEvent.click(action);
-    expect(action).toBeDisabled();
-    await userEvent.click(action);
+    const trigger = await screen.findByRole("button", { name: `Ações do registro de ${record.student_name}` });
+    await userEvent.click(trigger);
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Bloquear" }));
+    expect(trigger).toBeDisabled();
+    await userEvent.click(trigger);
     expect(patchCalls).toBe(1);
     releasePatch?.();
     await waitFor(() => expect(screen.getByText("Bloqueado")).toBeInTheDocument());

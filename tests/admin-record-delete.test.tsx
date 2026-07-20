@@ -40,7 +40,8 @@ describe("admin record deletion", () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<AdminPanel />);
     await userEvent.click(await screen.findByRole("button", { name: "Registros" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Excluir" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Ações do registro de Ana Souza" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Excluir" }));
     expect(fetchMock.mock.calls.some(([url, init]) => String(url).endsWith(`/records/${record.id}`) && init?.method === "DELETE")).toBe(false);
   });
 
@@ -49,7 +50,8 @@ describe("admin record deletion", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<AdminPanel />);
     await userEvent.click(await screen.findByRole("button", { name: "Registros" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Excluir" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Ações do registro de Ana Souza" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Excluir" }));
     expect(await screen.findByRole("status")).toHaveTextContent("excluído permanentemente");
     await waitFor(() => expect(screen.queryByText("Ana Souza")).not.toBeInTheDocument());
     expect(fetchMock.mock.calls.filter(([url, init]) => String(url).endsWith(`/records/${record.id}`) && init?.method === "DELETE")).toHaveLength(1);
@@ -60,7 +62,8 @@ describe("admin record deletion", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<AdminPanel />);
     await userEvent.click(await screen.findByRole("button", { name: "Registros" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Excluir" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Ações do registro de Ana Souza" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Excluir" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Falha ao excluir.");
     expect(screen.getByText("Ana Souza")).toBeInTheDocument();
   });

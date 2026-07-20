@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { QRCodeSVG } from "qrcode.react";
 import { createPublicLink, createRecord, deleteBrandLogo, deleteProfilePhoto, deleteRecord, getBranding, listRecords, revokePublicLink, rotatePublicLink, updateBrandLink, updateRecord, uploadBrandLogo, uploadProfilePhoto } from "@/lib/api";
 import { processProfilePhoto, type ProcessedProfilePhoto } from "@/lib/profile-photo";
@@ -33,6 +34,9 @@ export function AdminPanel() {
   const [shareRecord, setShareRecord] = useState<AdminRecord | null>(null);
   const [profilePhoto, setProfilePhoto] = useState<ProcessedProfilePhoto | null>(null);
   const [processingPhoto, setProcessingPhoto] = useState(false);
+  const [openActionMenu, setOpenActionMenu] = useState<{ recordId: string; kind: "link" | "record"; top: number; left: number } | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
+  const actionMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   function clearMessage() { setMessage(""); setMessageKind("success"); }
   function showSuccess(text: string) { setMessage(text); setMessageKind("success"); }
@@ -82,6 +86,61 @@ export function AdminPanel() {
       return () => { active = false; data.subscription.unsubscribe(); };
     } catch (error) { showError(error instanceof Error ? error.message : "Configuração indisponível."); }
   }, []);
+
+  useEffect(() => {
+    if (!openActionMenu) return;
+    actionMenuRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+    const closeOutside = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!target?.closest("[data-action-menu], [data-action-trigger]")) setOpenActionMenu(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpenActionMenu(null);
+      actionMenuTriggerRef.current?.focus();
+    };
+    const close = () => setOpenActionMenu(null);
+    const closeOnExternalScroll = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-action-menu]")) return;
+      close();
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", closeOnExternalScroll, true);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", closeOnExternalScroll, true);
+    };
+  }, [openActionMenu]);
+
+  function toggleActionMenu(event: ReactMouseEvent<HTMLButtonElement>, recordId: string, kind: "link" | "record") {
+    if (openActionMenu?.recordId === recordId && openActionMenu.kind === kind) { setOpenActionMenu(null); return; }
+    actionMenuTriggerRef.current = event.currentTarget;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const width = Math.min(220, window.innerWidth - 24);
+    const left = Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12));
+    const estimatedHeight = kind === "link" ? 230 : 180;
+    const top = rect.bottom + 6 + estimatedHeight > window.innerHeight ? Math.max(12, rect.top - estimatedHeight - 6) : rect.bottom + 6;
+    setOpenActionMenu({ recordId, kind, top, left });
+  }
+
+  function navigateActionMenu(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+    if (!items.length) return;
+    event.preventDefault();
+    const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+    const nextIndex = event.key === "Home" ? 0
+      : event.key === "End" ? items.length - 1
+      : event.key === "ArrowDown" ? (currentIndex + 1) % items.length
+      : (currentIndex - 1 + items.length) % items.length;
+    items[nextIndex]?.focus();
+  }
 
   async function login() {
     setLoading(true); clearMessage();
@@ -290,6 +349,7 @@ export function AdminPanel() {
   );
 
   const initial = editing ? recordToForm(editing) : empty;
+  const actionMenuRecord = openActionMenu ? records.find((record) => record.id === openActionMenu.recordId) ?? null : null;
   return (
     <main className="admin-shell">
       <div className="admin-title"><div><span className="eyebrow">Área administrativa</span><h1>Registros educacionais</h1></div><button className="text-button" onClick={() => getSupabaseBrowserClient().auth.signOut()}>Sair</button></div>
@@ -366,8 +426,20 @@ export function AdminPanel() {
         </form>
       </section>}
       {activeTab === "records" && <section className="admin-card"><div className="section-title"><h2>Registros cadastrados</h2><span>{records.length} resultado(s)</span></div>
-        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Link / QR</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={7}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><div className="share-actions">{record.publicLinkAvailable ? <><button className="copy-protocol" onClick={() => void sharePublicLink(record)}>Compartilhar</button><button className="table-action" onClick={() => void showQr(record)}>Ver QR</button><button className="table-action" disabled={updatingRecordId === record.id} onClick={() => void rotateLink(record)}>Renovar</button><button className="table-action danger" disabled={updatingRecordId === record.id} onClick={() => void revokeLink(record)}>Revogar</button></> : <button className="copy-protocol" disabled={updatingRecordId === record.id} onClick={() => void ensurePublicLink(record)}>Gerar link</button>}</div></td><td><button className="table-action" disabled={updatingRecordId === record.id} onClick={() => { clearProfilePhoto(); setEditing(record); setAdditionalDocuments(record.additional_documents ?? []); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button><button className={`table-action ${record.status === "active" ? "danger" : ""}`} disabled={updatingRecordId === record.id} onClick={() => void setRecordBlocked(record, record.status === "active")}>{record.status === "active" ? "Bloquear" : "Desbloquear"}</button><button type="button" className="table-action danger" disabled={updatingRecordId === record.id} onClick={() => void removeRecord(record)}>{updatingRecordId === record.id ? "Excluindo…" : "Excluir"}</button></td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Link / QR</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={7}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><button type="button" className="action-menu-trigger" data-action-trigger aria-label={`Opções de link de ${record.student_name}`} aria-haspopup="menu" aria-expanded={openActionMenu?.recordId === record.id && openActionMenu.kind === "link"} disabled={updatingRecordId === record.id} onClick={(event) => toggleActionMenu(event, record.id, "link")}>⋯</button></td><td><button type="button" className="action-menu-trigger" data-action-trigger aria-label={`Ações do registro de ${record.student_name}`} aria-haspopup="menu" aria-expanded={openActionMenu?.recordId === record.id && openActionMenu.kind === "record"} disabled={updatingRecordId === record.id} onClick={(event) => toggleActionMenu(event, record.id, "record")}>⋯</button></td></tr>)}</tbody></table></div>
       </section>}
+      {openActionMenu && actionMenuRecord && createPortal(<div ref={actionMenuRef} className="action-menu-popover" data-action-menu role="menu" aria-label={openActionMenu.kind === "link" ? `Ações do link de ${actionMenuRecord.student_name}` : `Ações do registro de ${actionMenuRecord.student_name}`} style={{ top: openActionMenu.top, left: openActionMenu.left }} onKeyDown={navigateActionMenu}>
+        {openActionMenu.kind === "link" ? (actionMenuRecord.publicLinkAvailable ? <>
+          <button role="menuitem" onClick={() => { setOpenActionMenu(null); void sharePublicLink(actionMenuRecord); }}>Compartilhar</button>
+          <button role="menuitem" onClick={() => { setOpenActionMenu(null); void showQr(actionMenuRecord); }}>Ver QR</button>
+          <button role="menuitem" disabled={updatingRecordId === actionMenuRecord.id} onClick={() => { setOpenActionMenu(null); void rotateLink(actionMenuRecord); }}>Renovar</button>
+          <button role="menuitem" className="danger" disabled={updatingRecordId === actionMenuRecord.id} onClick={() => { setOpenActionMenu(null); void revokeLink(actionMenuRecord); }}>Revogar</button>
+        </> : <button role="menuitem" disabled={updatingRecordId === actionMenuRecord.id} onClick={() => { setOpenActionMenu(null); void ensurePublicLink(actionMenuRecord); }}>Gerar link</button>) : <>
+          <button role="menuitem" onClick={() => { setOpenActionMenu(null); clearProfilePhoto(); setEditing(actionMenuRecord); setAdditionalDocuments(actionMenuRecord.additional_documents ?? []); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button>
+          <button role="menuitem" disabled={updatingRecordId === actionMenuRecord.id} onClick={() => { setOpenActionMenu(null); void setRecordBlocked(actionMenuRecord, actionMenuRecord.status === "active"); }}>{actionMenuRecord.status === "active" ? "Bloquear" : "Desbloquear"}</button>
+          <button role="menuitem" className="danger" disabled={updatingRecordId === actionMenuRecord.id} onClick={() => { setOpenActionMenu(null); void removeRecord(actionMenuRecord); }}>{updatingRecordId === actionMenuRecord.id ? "Excluindo…" : "Excluir"}</button>
+        </>}
+      </div>, document.body)}
       {shareRecord?.publicLink && <div className="modal-backdrop" role="presentation"><section className="modal qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title"><button className="modal-close" aria-label="Fechar QR code" onClick={() => setShareRecord(null)}>×</button><h2 id="qr-title">QR code do registro</h2><QRCodeSVG value={shareRecord.publicLink} size={220} level="M" marginSize={2} title={`QR code do registro de ${shareRecord.student_name}`} /><p>Ao escanear, o visitante abrirá o registro diretamente.</p><label className="qr-link-field">Link público do registro<input aria-label="Link público do registro" value={shareRecord.publicLink} readOnly /></label><div className="qr-link-actions"><a className="secondary-button" href={shareRecord.publicLink} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" aria-label="Abrir link">Abrir link</a><button type="button" className="secondary-button" onClick={() => void copyPublicLink(shareRecord)}>Copiar link</button><button type="button" className="primary-button" onClick={() => void sharePublicLink(shareRecord)}>Compartilhar link</button></div></section></div>}
     </main>
   );

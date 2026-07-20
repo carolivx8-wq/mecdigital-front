@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdminPanel } from "@/components/AdminPanel";
@@ -37,9 +37,23 @@ describe("admin public link actions", () => {
 
     render(<AdminPanel />);
     await userEvent.click(await screen.findByRole("button", { name: "Registros" }));
-    await userEvent.click(await screen.findByRole("button", { name: "Compartilhar" }));
+    const linkMenuTrigger = await screen.findByRole("button", { name: "Opções de link de Ana Souza" });
+    await userEvent.click(linkMenuTrigger);
+    fireEvent.scroll(await screen.findByRole("menu"));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(await screen.findByRole("menuitem", { name: "Compartilhar" })).toHaveFocus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: "Ver QR" })).toHaveFocus();
+    await userEvent.keyboard("{End}");
+    expect(screen.getByRole("menuitem", { name: "Revogar" })).toHaveFocus();
+    await userEvent.keyboard("{Home}{Escape}");
+    expect(linkMenuTrigger).toHaveFocus();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await userEvent.click(linkMenuTrigger);
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Compartilhar" }));
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ url: publicLink }));
-    await userEvent.click(screen.getByRole("button", { name: "Ver QR" }));
+    await userEvent.click(screen.getByRole("button", { name: "Opções de link de Ana Souza" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Ver QR" }));
     expect(await screen.findByRole("dialog", { name: "QR code do registro" })).toBeInTheDocument();
     expect(screen.getByTitle("QR code do registro de Ana Souza")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Link público do registro" })).toHaveValue(publicLink);
