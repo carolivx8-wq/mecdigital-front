@@ -15,8 +15,9 @@ a { color:var(--blue); }
 .menu-toggle:hover { color:#fff; background:var(--blue); }.menu-toggle:focus-visible { outline-color:var(--yellow); }
 .menu-toggle-lines { display:grid; gap:4px; width:22px; }.menu-toggle-lines i { display:block; height:2px; border-radius:999px; background:currentColor; }
 .site-menu { position:absolute; top:calc(100% + 10px); right:0; z-index:15; width:min(360px, calc(100vw - 32px)); padding:16px; border:1px solid var(--line); border-radius:8px; background:#fff; box-shadow:0 12px 32px #0c326f25; }.site-menu[hidden] { display:none; }
-.external-menu { display:grid; justify-content:stretch; gap:0; padding-bottom:10px; border-bottom:1px solid var(--line); font-size:.9rem; }.external-menu a,.local-menu a { display:block; padding:10px 0; font-weight:700; }.external-menu a + a { border-top:1px solid #edf0f4; }
-.local-menu { display:grid; align-items:center; gap:0; padding-top:4px; }
+.site-header .external-menu,.site-header .local-menu { display:flex; flex-direction:column; flex-wrap:nowrap; align-items:stretch; justify-content:stretch; gap:8px; }
+.site-header .external-menu { padding-bottom:12px; border-bottom:1px solid var(--line); font-size:.9rem; }.site-header .external-menu a,.site-header .local-menu a { display:block; width:100%; padding:10px 12px; border-radius:5px; font-weight:700; }.site-header .external-menu a:hover,.site-header .local-menu a:hover { background:#edf4ff; }.site-header .external-menu a + a { border-top:0; }
+.site-header .local-menu { padding-top:12px; }
 .accessibility-float { position:fixed; right:20px; bottom:20px; z-index:30; display:grid; place-items:center; width:64px; height:64px; border:3px solid #fff; border-radius:16px; background:#1769d1; box-shadow:0 8px 24px #0c326f66; }.accessibility-float:hover { transform:translateY(-2px); }.accessibility-float img { display:block; width:58px; height:58px; border-radius:12px; }
 .brand { position:relative; text-decoration:none; font-size:2.1rem; font-weight:800; letter-spacing:-2px; }
 .brand span { color:var(--blue); }.brand strong { color:var(--green); }.brand i { display:inline-block; width:10px; height:10px; margin-left:4px; border-radius:50%; background:var(--yellow); }
