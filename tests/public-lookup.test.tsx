@@ -42,6 +42,7 @@ describe("PublicLookup", () => {
     expect(screen.getByText("35383438")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /baixar em pdf/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /baixar em xml/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /voltar ao topo/i })).toHaveAttribute("href", "#conteudo");
     expect(screen.queryByText(/\*\*\*/)).not.toBeInTheDocument();
   });
 

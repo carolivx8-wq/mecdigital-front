@@ -97,6 +97,7 @@ export function PublicLookup() {
               <button className="download-button" onClick={() => download("pdf")}><span>PDF</span> Baixar em PDF</button>
               <button className="download-button" onClick={() => download("xml")}><span>XML</span> Baixar em XML</button>
             </div>
+            <a className="back-to-top" href="#conteudo">↑ Voltar ao topo</a>
           </div>
         </section>
       )}
