@@ -17,6 +17,7 @@ const externalLinks = [
 
 export function BrandHeader({ admin = false }: { admin?: boolean }) {
   const [branding, setBranding] = useState<Branding>(defaultBranding);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     getBranding().then(setBranding).catch(() => undefined);
@@ -36,18 +37,24 @@ export function BrandHeader({ admin = false }: { admin?: boolean }) {
             : <Link className="brand brand-image" href="/registro/consulta" aria-label="MecDigital — página inicial">{logo}</Link>)}
         </div>
         <div className="header-actions">
-          <nav className="external-menu" aria-label="Links de serviços públicos">
-            {externalLinks.map(([label, href]) => <a key={label} href={href} target="_blank" rel="noopener noreferrer">{label}</a>)}
-          </nav>
-          <nav className="local-menu" aria-label="Navegação principal">
-            <Link href="/registro/consulta">Consulta</Link>
-            {admin && <Link href="/admin">Administração</Link>}
-            <Link className="accessibility-link" href="/acessibilidade" aria-label="Acessibilidade">
-              <img src="/accessibility-icon.svg" alt="" aria-hidden="true" />
-            </Link>
-          </nav>
+          <button type="button" className="menu-toggle" aria-expanded={menuOpen} aria-controls="site-menu" onClick={() => setMenuOpen((open) => !open)}>
+            <span aria-hidden="true" className="menu-toggle-lines"><i /><i /><i /></span>
+            <span>{menuOpen ? "Fechar menu" : "Abrir menu"}</span>
+          </button>
+          <div id="site-menu" className="site-menu" hidden={!menuOpen}>
+            <nav className="external-menu" aria-label="Links de serviços públicos">
+              {externalLinks.map(([label, href]) => <a key={label} href={href} target="_blank" rel="noopener noreferrer">{label}</a>)}
+            </nav>
+            <nav className="local-menu" aria-label="Navegação principal">
+              <Link href="/registro/consulta" onClick={() => setMenuOpen(false)}>Consulta</Link>
+              {admin && <Link href="/admin" onClick={() => setMenuOpen(false)}>Administração</Link>}
+            </nav>
+          </div>
         </div>
       </div>
+      <Link className="accessibility-float" href="/acessibilidade" aria-label="Acessibilidade">
+        <img src="/accessibility-icon.svg" alt="" aria-hidden="true" />
+      </Link>
     </header>
   );
 }

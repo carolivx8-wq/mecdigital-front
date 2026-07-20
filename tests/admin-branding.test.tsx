@@ -43,6 +43,7 @@ describe("configurable brand", () => {
     expect(screen.queryByRole("link", { name: /MecDigital/i })).not.toBeInTheDocument();
     expect(screen.queryByText("MecDigital")).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "MecDigital" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Abrir menu" }));
     expect(screen.getByRole("link", { name: "Consulta" })).toHaveAttribute("href", "/registro/consulta");
   });
 
