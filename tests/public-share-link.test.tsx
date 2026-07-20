@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import SharedRecordPage from "@/app/registro/compartilhado/page";
 import { PublicLookup } from "@/components/PublicLookup";
 
 afterEach(() => {
@@ -9,6 +10,27 @@ afterEach(() => {
 });
 
 describe("public shared link", () => {
+  it("renders the platform header on the QR Code route", async () => {
+    const token = "A".repeat(43);
+    window.history.replaceState(null, "", `/registro/compartilhado#${token}`);
+    vi.spyOn(global, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/branding")) return new Response(JSON.stringify({ data: { logoUrl: "https://cdn.example/logo.png", logoLink: null } }), { status: 200 });
+      return new Response(JSON.stringify({ data: {
+        consultedAt: "2026-07-20T12:00:00.000Z",
+        student: { name: "Ana Souza", birthDate: "1990-01-01", documentType: "RG", documentNumber: "123456", documents: [], motherName: null, fatherName: null, educationLevel: "Superior", completionDate: "2025-01-01", notes: null, profilePhotoUrl: null },
+        institution: { name: "InstituiÃ§Ã£o Exemplo", creationAct: null, publicationText: null },
+        downloads: { pdf: "blocked", xml: "blocked" }
+      } }), { status: 200 });
+    });
+
+    render(<SharedRecordPage />);
+
+    expect(await screen.findByRole("img", { name: "MecDigital" })).toHaveAttribute("src", "https://cdn.example/logo.png");
+    expect(screen.getByRole("button", { name: /menu/i })).toBeInTheDocument();
+    expect(await screen.findByText("Ana Souza")).toBeInTheDocument();
+  });
+
   it("resolves the fragment by POST, removes it from the URL and does not ask for a protocol", async () => {
     const token = "A".repeat(43);
     window.history.replaceState(null, "", `/registro/compartilhado#${token}`);

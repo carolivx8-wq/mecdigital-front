@@ -1,3 +1,4 @@
+import { BrandHeader } from "@/components/BrandHeader";
 import { PublicLookup } from "@/components/PublicLookup";
 
 export const metadata = {
@@ -6,5 +7,10 @@ export const metadata = {
 };
 
 export default function SharedRecordPage() {
-  return <PublicLookup direct />;
+  return (
+    <>
+      <BrandHeader />
+      <PublicLookup direct />
+    </>
+  );
 }
