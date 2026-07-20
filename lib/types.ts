@@ -1,5 +1,6 @@
 export interface PublicRecord {
   consultedAt?: string;
+  blocked: boolean;
   student: {
     name: string;
     birthDate: string;

@@ -7,6 +7,7 @@ const record = {
   student: { name: "Samara Maria Teixeira Fernandes", birthDate: "1979-03-16", documentType: "RG", documentNumber: "35383438", motherName: "Zilma Teixeira de Farias", fatherName: "Paulo Fernandes de Farias", educationLevel: "Enfermagem", completionDate: "2025-12-19", notes: "APROVADO" },
   institution: { name: "Universidade Exemplo", creationAct: "Decreto 123", publicationText: "Publicação processada" },
   downloads: { pdf: "blocked", xml: "blocked" },
+  blocked: false,
   consultedAt: "2026-07-19T15:42:30.000Z"
 };
 
@@ -33,10 +34,11 @@ describe("PublicLookup", () => {
   it("renders the full approved result, consultation date and the two document actions", async () => {
     vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: record }), { status: 200 }));
     render(<PublicLookup />);
-    await userEvent.type(screen.getByLabelText(/número do protocolo/i), "MEC-0123456789ABCDEF01234567");
+    await userEvent.type(screen.getByLabelText("Número do protocolo"), "MEC-0123456789ABCDEF01234567");
     await userEvent.click(screen.getByRole("button", { name: "Consultar" }));
     expect(await screen.findByText("Samara Maria Teixeira Fernandes")).toBeInTheDocument();
     expect(screen.getByText(/consulta realizada em/i).closest("p")).toHaveTextContent("19/07/2026");
+    expect(screen.getByText(/consulta realizada em/i).compareDocumentPosition(screen.getByRole("button", { name: /baixar em pdf/i }))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(screen.getByText("35383438")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /baixar em pdf/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /baixar em xml/i })).toBeInTheDocument();
@@ -51,6 +53,15 @@ describe("PublicLookup", () => {
     await userEvent.type(screen.getByLabelText(/número do protocolo/i), "MEC-0123456789ABCDEF01234567");
     await userEvent.click(screen.getByRole("button", { name: "Consultar" }));
     await userEvent.click(await screen.findByRole("button", { name: /baixar em pdf/i }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Protocolo bloqueado temporariamente");
+  });
+
+  it("shows blocked record data and opens the warning dialog", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({ data: { ...record, blocked: true } }), { status: 200 }));
+    render(<PublicLookup />);
+    await userEvent.type(screen.getByLabelText("Número do protocolo"), "MEC-0123456789ABCDEF01234567");
+    await userEvent.click(screen.getByRole("button", { name: "Consultar" }));
+    expect(await screen.findByText("Samara Maria Teixeira Fernandes")).toBeInTheDocument();
     expect(await screen.findByRole("dialog")).toHaveTextContent("Protocolo bloqueado temporariamente");
   });
 });

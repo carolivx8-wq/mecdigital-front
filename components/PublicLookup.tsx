@@ -26,14 +26,18 @@ export function PublicLookup() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setLoading(true); setMessage(""); setRecord(null);
+    setLoading(true); setMessage(""); setRecord(null); setModalOpen(false);
     const normalizedProtocol = protocol.trim().toUpperCase();
     if (!/^MEC-[A-Z0-9]{24}$/.test(normalizedProtocol)) {
       setMessage("Protocolo inválido. Confira o código informado.");
       setLoading(false);
       return;
     }
-    try { setRecord(await lookupProtocol(normalizedProtocol)); }
+    try {
+      const foundRecord = await lookupProtocol(normalizedProtocol);
+      setRecord(foundRecord);
+      setModalOpen(foundRecord.blocked);
+    }
     catch (error) { setMessage(error instanceof ApiError && error.code === "PROTOCOL_NOT_FOUND" ? "Protocolo não encontrado. Confira o código informado." : error instanceof Error ? error.message : "Não foi possível consultar agora."); }
     finally { setLoading(false); }
   }
@@ -66,7 +70,6 @@ export function PublicLookup() {
       {record && (
         <section className="result" aria-live="polite">
           <div className="result-heading"><span className="status-dot" /> Registro localizado</div>
-          {record.consultedAt && <p className="consulted-at"><strong>Consulta realizada em:</strong> {formatConsultedAt(record.consultedAt)}</p>}
           <div className="record-grid">
             <article className="data-card">
               <h2>Dados do aluno</h2>
@@ -89,6 +92,7 @@ export function PublicLookup() {
           <div className="download-panel">
             <h2>Documentos digitais</h2>
             <p>Escolha o formato desejado para solicitar o documento.</p>
+            {record.consultedAt && <p className="consulted-at"><strong>Consulta realizada em:</strong> {formatConsultedAt(record.consultedAt)}</p>}
             <div className="download-actions">
               <button className="download-button" onClick={() => download("pdf")}><span>PDF</span> Baixar em PDF</button>
               <button className="download-button" onClick={() => download("xml")}><span>XML</span> Baixar em XML</button>
