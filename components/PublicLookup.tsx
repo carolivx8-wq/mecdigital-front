@@ -114,7 +114,7 @@ export function PublicLookup() {
           <section className="modal" role="dialog" aria-modal="true" aria-labelledby="blocked-title">
             <button className="modal-close" aria-label="Fechar mensagem" onClick={() => setModalOpen(false)}>×</button>
             <div className="modal-icon" aria-hidden="true">!</div>
-            <h2 id="blocked-title">Protocolo bloqueado temporariamente!</h2>
+            <h2 id="blocked-title">Registro bloqueado temporariamente!</h2>
             <p>Consulte sua instituição para obter mais informações.</p>
             <button className="primary-button" onClick={() => setModalOpen(false)}>Entendi</button>
           </section>

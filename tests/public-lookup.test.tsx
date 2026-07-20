@@ -59,7 +59,7 @@ describe("PublicLookup", () => {
     await userEvent.type(screen.getByLabelText(/número do protocolo/i), "MEC-0123456789ABCDEF01234567");
     await userEvent.click(screen.getByRole("button", { name: "Consultar" }));
     await userEvent.click(await screen.findByRole("button", { name: /baixar em pdf/i }));
-    expect(await screen.findByRole("dialog")).toHaveTextContent("Protocolo bloqueado temporariamente");
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Registro bloqueado temporariamente");
   });
 
   it("blocks record data and keeps the warning open when the backdrop is clicked", async () => {
@@ -67,7 +67,7 @@ describe("PublicLookup", () => {
     render(<PublicLookup />);
     await userEvent.type(screen.getByLabelText("Número do protocolo"), "MEC-0123456789ABCDEF01234567");
     await userEvent.click(screen.getByRole("button", { name: "Consultar" }));
-    expect(await screen.findByRole("dialog")).toHaveTextContent("Protocolo bloqueado temporariamente");
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Registro bloqueado temporariamente");
     await userEvent.click(screen.getByRole("presentation"));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.queryByText("Samara Maria Teixeira Fernandes")).not.toBeInTheDocument();
