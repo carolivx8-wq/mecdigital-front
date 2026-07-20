@@ -6,6 +6,7 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 import type { AdminRecord } from "@/lib/types";
 
 const empty = { student_name: "", birth_date: "", document_type: "RG", document_number: "", mother_name: "", father_name: "", education_level: "", completion_date: "", notes: "", institution_name: "", institution_creation_act: "", publication_text: "" };
+type AdditionalDocument = NonNullable<AdminRecord["additional_documents"]>[number];
 
 function recordToForm(record: AdminRecord) {
   return Object.fromEntries(Object.keys(empty).map((key) => [key, record[key as keyof AdminRecord] ?? ""]));
@@ -18,6 +19,7 @@ export function AdminPanel() {
   const [formVersion, setFormVersion] = useState(0);
   const [protocol, setProtocol] = useState("");
   const [message, setMessage] = useState("");
+  const [messageKind, setMessageKind] = useState<"success" | "error">("success");
   const [loading, setLoading] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -25,6 +27,11 @@ export function AdminPanel() {
   const [logoLink, setLogoLink] = useState("");
   const [updatingRecordId, setUpdatingRecordId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"new" | "records" | "branding">("new");
+  const [additionalDocuments, setAdditionalDocuments] = useState<AdditionalDocument[]>([]);
+
+  function clearMessage() { setMessage(""); setMessageKind("success"); }
+  function showSuccess(text: string) { setMessage(text); setMessageKind("success"); }
+  function showError(text: string) { setMessage(text); setMessageKind("error"); }
 
   async function refresh(accessToken: string) {
     setRecords(await listRecords(accessToken));
@@ -37,90 +44,93 @@ export function AdminPanel() {
       const supabase = getSupabaseBrowserClient();
       supabase.auth.getSession().then(({ data }) => {
         const accessToken = data.session?.access_token;
-        if (active && accessToken) { setToken(accessToken); refresh(accessToken).catch(() => setMessage("Não foi possível carregar os registros.")); }
+        if (active && accessToken) { setToken(accessToken); refresh(accessToken).catch(() => showError("Não foi possível carregar os registros.")); }
       });
       const { data } = supabase.auth.onAuthStateChange((_event, session) => { if (active) setToken(session?.access_token ?? null); });
       return () => { active = false; data.subscription.unsubscribe(); };
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Configuração indisponível."); }
+    } catch (error) { showError(error instanceof Error ? error.message : "Configuração indisponível."); }
   }, []);
 
   async function login() {
-    setLoading(true); setMessage("");
+    setLoading(true); clearMessage();
     try {
       const { data: result, error } = await getSupabaseBrowserClient().auth.signInWithPassword({ email: loginEmail, password: loginPassword });
       if (error || !result.session) throw new Error("E-mail ou senha inválidos.");
       setToken(result.session.access_token); await refresh(result.session.access_token);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível entrar."); }
+    } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível entrar."); }
     finally { setLoading(false); }
   }
 
   async function saveLogo() {
     if (!token || !logoFile) return;
-    setLoading(true); setMessage("");
+    setLoading(true); clearMessage();
     try {
       const branding = await uploadBrandLogo(token, logoFile);
       window.dispatchEvent(new CustomEvent("branding-updated", { detail: { logoUrl: branding.logoUrl } }));
-      setLogoFile(null); setMessage("Logo atualizada com sucesso.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel atualizar a logo."); }
+      setLogoFile(null); showSuccess("Logo atualizada com sucesso.");
+    } catch (error) { showError(error instanceof Error ? error.message : "Nao foi possivel atualizar a logo."); }
     finally { setLoading(false); }
   }
 
   async function restoreLogo() {
     if (!token || !confirm("Remover a logo atual? A área da marca ficará em branco.")) return;
-    setLoading(true); setMessage("");
+    setLoading(true); clearMessage();
     try {
       await deleteBrandLogo(token);
       window.dispatchEvent(new CustomEvent("branding-updated", { detail: { logoUrl: null } }));
-      setLogoFile(null); setMessage("Logo removida. A área da marca ficará em branco.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Nao foi possivel restaurar a marca."); }
+      setLogoFile(null); showSuccess("Logo removida. A área da marca ficará em branco.");
+    } catch (error) { showError(error instanceof Error ? error.message : "Nao foi possivel restaurar a marca."); }
     finally { setLoading(false); }
   }
 
   async function saveLogoLink() {
     if (!token) return;
-    setLoading(true); setMessage("");
+    setLoading(true); clearMessage();
     try {
       const result = await updateBrandLink(token, logoLink.trim() || null);
       setLogoLink(result.logoLink ?? "");
       window.dispatchEvent(new CustomEvent("branding-updated", { detail: { logoLink: result.logoLink } }));
-      setMessage(result.logoLink ? "Link da logo atualizado." : "Link da logo removido.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível atualizar o link."); }
+      showSuccess(result.logoLink ? "Link da logo atualizado." : "Link da logo removido.");
+    } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível atualizar o link."); }
     finally { setLoading(false); }
   }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!token) return;
-    setLoading(true); setMessage(""); setProtocol("");
+    setLoading(true); clearMessage(); setProtocol("");
     const raw = Object.fromEntries(new FormData(event.currentTarget));
-    const body = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, value === "" && ["mother_name", "father_name", "notes", "institution_creation_act", "publication_text"].includes(key) ? null : value]));
+    const body = {
+      ...Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, value === "" && ["mother_name", "father_name", "notes", "institution_creation_act", "publication_text"].includes(key) ? null : value])),
+      additional_documents: additionalDocuments
+    };
     try {
-      if (editing) { await updateRecord(token, editing.id, body); setMessage("Registro atualizado com sucesso."); }
-      else { const result = await createRecord(token, body); setProtocol(result.protocol); setMessage("Registro criado com sucesso. O protocolo também está disponível na aba Registros."); setActiveTab("records"); }
-      setEditing(null); setFormVersion((value) => value + 1); await refresh(token);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível salvar."); }
+      if (editing) { await updateRecord(token, editing.id, body); showSuccess("Registro atualizado com sucesso."); }
+      else { const result = await createRecord(token, body); setProtocol(result.protocol); showSuccess("Registro criado com sucesso. O protocolo também está disponível na aba Registros."); setActiveTab("records"); }
+      setEditing(null); setAdditionalDocuments([]); setFormVersion((value) => value + 1); await refresh(token);
+    } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível salvar."); }
     finally { setLoading(false); }
   }
 
   async function setRecordBlocked(record: AdminRecord, blocked: boolean) {
     if (!token || !confirm(`${blocked ? "Bloquear" : "Desbloquear"} o registro de ${record.student_name}?`)) return;
-    setUpdatingRecordId(record.id); setMessage("");
+    setUpdatingRecordId(record.id); clearMessage();
     try {
       await updateRecord(token, record.id, { status: blocked ? "archived" : "active" });
       await refresh(token);
-      setMessage(`Registro de ${record.student_name} ${blocked ? "bloqueado" : "desbloqueado"} com sucesso.`);
+      showSuccess(`Registro de ${record.student_name} ${blocked ? "bloqueado" : "desbloqueado"} com sucesso.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Não foi possível atualizar o status do registro.");
+      showError(error instanceof Error ? error.message : "Não foi possível atualizar o status do registro.");
     } finally {
       setUpdatingRecordId(null);
     }
   }
 
   async function copyProtocol(record: AdminRecord) {
-    if (!record.protocol) { setMessage("Este registro foi criado antes da recuperação de protocolos e não possui uma cópia disponível."); return; }
+    if (!record.protocol) { showError("Este registro foi criado antes da recuperação de protocolos e não possui uma cópia disponível."); return; }
     try {
       await navigator.clipboard.writeText(record.protocol);
-      setMessage(`Protocolo de ${record.student_name} copiado.`);
-    } catch { setMessage("Não foi possível copiar o protocolo. Tente novamente."); }
+      showSuccess(`Protocolo de ${record.student_name} copiado.`);
+    } catch { showError("Não foi possível copiar o protocolo. Tente novamente."); }
   }
 
   if (!token) return (
@@ -140,7 +150,7 @@ export function AdminPanel() {
   return (
     <main className="admin-shell">
       <div className="admin-title"><div><span className="eyebrow">Área administrativa</span><h1>Registros educacionais</h1></div><button className="text-button" onClick={() => getSupabaseBrowserClient().auth.signOut()}>Sair</button></div>
-      {message && <div className="alert success" role="status">{message}{protocol && <code className="protocol-code">{protocol}</code>}</div>}
+      {message && <div className={`alert ${messageKind}`} role={messageKind === "error" ? "alert" : "status"}>{message}{protocol && <code className="protocol-code">{protocol}</code>}</div>}
       <nav className="admin-tabs" aria-label="Seções do painel">
         <button type="button" className={activeTab === "new" ? "active" : ""} aria-current={activeTab === "new" ? "page" : undefined} onClick={() => setActiveTab("new")}>Novo registro</button>
         <button type="button" className={activeTab === "records" ? "active" : ""} aria-current={activeTab === "records" ? "page" : undefined} onClick={() => setActiveTab("records")}>Registros</button>
@@ -165,6 +175,25 @@ export function AdminPanel() {
           <label>Data de nascimento<input name="birth_date" type="date" defaultValue={String(initial.birth_date)} required /></label>
           <label>Tipo de documento<select name="document_type" defaultValue={String(initial.document_type)}><option>RG</option><option>RNE</option><option>CPF</option><option value="OTHER">Outro</option></select></label>
           <label>Número do documento<input name="document_number" defaultValue={String(initial.document_number)} required /></label>
+          <div className="additional-documents wide">
+            <div className="section-title">
+              <h3>Documentos adicionais</h3>
+              <button type="button" className="secondary-button" aria-label="Adicionar documento" disabled={additionalDocuments.length >= 9} onClick={() => setAdditionalDocuments((current) => [...current, { document_type: "RG", document_number: "" }])}>+ Adicionar documento</button>
+            </div>
+            {additionalDocuments.map((document, index) => (
+              <div className="additional-document-row" key={index}>
+                <label>Tipo do documento adicional {index + 1}
+                  <select value={document.document_type} onChange={(event) => setAdditionalDocuments((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, document_type: event.target.value as AdditionalDocument["document_type"] } : item))}>
+                    <option>RG</option><option>RNE</option><option>CPF</option><option value="OTHER">Outro</option>
+                  </select>
+                </label>
+                <label>Número do documento adicional {index + 1}
+                  <input required value={document.document_number} onChange={(event) => setAdditionalDocuments((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, document_number: event.target.value } : item))} />
+                </label>
+                <button type="button" className="text-button danger" aria-label={`Remover documento ${index + 1}`} onClick={() => setAdditionalDocuments((current) => current.filter((_, itemIndex) => itemIndex !== index))}>Remover</button>
+              </div>
+            ))}
+          </div>
           <label>Nome da mãe<input name="mother_name" defaultValue={String(initial.mother_name)} /></label>
           <label>Nome do pai<input name="father_name" defaultValue={String(initial.father_name)} /></label>
           <label>Nível de ensino<input name="education_level" defaultValue={String(initial.education_level)} required /></label>
@@ -173,11 +202,11 @@ export function AdminPanel() {
           <label className="wide">Ato de criação<textarea name="institution_creation_act" defaultValue={String(initial.institution_creation_act)} /></label>
           <label className="wide">Publicação<textarea name="publication_text" defaultValue={String(initial.publication_text)} /></label>
           <label className="wide">Observações<textarea name="notes" defaultValue={String(initial.notes)} /></label>
-          <div className="form-actions wide"><button className="primary-button" disabled={loading}>{loading ? "Salvando…" : editing ? "Salvar alterações" : "Criar e gerar protocolo"}</button>{editing && <button type="button" className="secondary-button" onClick={() => { setEditing(null); setFormVersion((value) => value + 1); }}>Cancelar</button>}</div>
+          <div className="form-actions wide"><button className="primary-button" disabled={loading}>{loading ? "Salvando…" : editing ? "Salvar alterações" : "Criar e gerar protocolo"}</button>{editing && <button type="button" className="secondary-button" onClick={() => { setEditing(null); setAdditionalDocuments([]); setFormVersion((value) => value + 1); }}>Cancelar</button>}</div>
         </form>
       </section>}
       {activeTab === "records" && <section className="admin-card"><div className="section-title"><h2>Registros cadastrados</h2><span>{records.length} resultado(s)</span></div>
-        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={6}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><button className="table-action" onClick={() => { setEditing(record); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button><button className={`table-action ${record.status === "active" ? "danger" : ""}`} disabled={updatingRecordId === record.id} onClick={() => void setRecordBlocked(record, record.status === "active")}>{record.status === "active" ? "Bloquear" : "Desbloquear"}</button></td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={6}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><button className="table-action" onClick={() => { setEditing(record); setAdditionalDocuments(record.additional_documents ?? []); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button><button className={`table-action ${record.status === "active" ? "danger" : ""}`} disabled={updatingRecordId === record.id} onClick={() => void setRecordBlocked(record, record.status === "active")}>{record.status === "active" ? "Bloquear" : "Desbloquear"}</button></td></tr>)}</tbody></table></div>
       </section>}
     </main>
   );

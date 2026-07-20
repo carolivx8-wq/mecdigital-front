@@ -59,6 +59,7 @@ describe("admin record status", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Registros" }));
     await userEvent.click(await screen.findByRole("button", { name: "Bloquear" }));
     expect(await screen.findByText("Não foi possível bloquear o registro.")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveClass("alert", "error");
     expect(screen.getByText("Ativo")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Bloquear" })).toBeEnabled();
   });

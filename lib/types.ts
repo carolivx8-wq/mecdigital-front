@@ -5,6 +5,7 @@ export interface PublicRecord {
     birthDate: string;
     documentType: string;
     documentNumber: string;
+    documents?: Array<{ type: "RG" | "RNE" | "CPF" | "OTHER"; number: string }>;
     motherName: string | null;
     fatherName: string | null;
     educationLevel: string;
@@ -23,6 +24,7 @@ export interface AdminRecord {
   birth_date: string;
   document_type: "RG" | "RNE" | "CPF" | "OTHER";
   document_number: string;
+  additional_documents?: Array<{ document_type: "RG" | "RNE" | "CPF" | "OTHER"; document_number: string }>;
   mother_name: string | null;
   father_name: string | null;
   education_level: string;

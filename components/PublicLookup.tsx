@@ -23,6 +23,9 @@ export function PublicLookup() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const documents = record?.student.documents?.length
+    ? record.student.documents
+    : record ? [{ type: record.student.documentType, number: record.student.documentNumber }] : [];
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -77,7 +80,9 @@ export function PublicLookup() {
               <h2>Dados do aluno</h2>
               <DataLine label="Nome" value={record.student.name} />
               <DataLine label="Data de nascimento" value={formatDate(record.student.birthDate)} />
-              <DataLine label={record.student.documentType} value={record.student.documentNumber} />
+              {documents.map((document, index) => (
+                <DataLine key={`${document.type}-${index}`} label={document.type === "OTHER" ? "Outro documento" : document.type} value={document.number} />
+              ))}
               <DataLine label="Nome da mãe" value={record.student.motherName} />
               <DataLine label="Nome do pai" value={record.student.fatherName} />
               <DataLine label="Nível de ensino" value={record.student.educationLevel} />
@@ -94,11 +99,11 @@ export function PublicLookup() {
           <div className="download-panel">
             <h2>Documentos digitais</h2>
             <p>Escolha o formato desejado para solicitar o documento.</p>
-            {record.consultedAt && <p className="consulted-at"><strong>Consulta realizada em:</strong> {formatConsultedAt(record.consultedAt)}</p>}
             <div className="download-actions">
               <button className="download-button" onClick={() => download("pdf")}><span>PDF</span> Baixar em PDF</button>
               <button className="download-button" onClick={() => download("xml")}><span>XML</span> Baixar em XML</button>
             </div>
+            {record.consultedAt && <p className="consulted-at"><strong>Consulta realizada em:</strong> {formatConsultedAt(record.consultedAt)}</p>}
             <a className="back-to-top" href="#conteudo">↑ Voltar ao topo</a>
           </div>
         </section>
