@@ -24,7 +24,9 @@ afterEach(() => vi.restoreAllMocks());
 describe("admin public link actions", () => {
   it("shares the exact persisted link and renders the matching QR", async () => {
     const share = vi.fn().mockResolvedValue(undefined);
+    const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "share", { configurable: true, value: share });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     vi.spyOn(global, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url.endsWith("/api/v1/branding")) return new Response(JSON.stringify({ data: { logoUrl: null, logoLink: null } }), { status: 200 });
@@ -40,5 +42,10 @@ describe("admin public link actions", () => {
     await userEvent.click(screen.getByRole("button", { name: "Ver QR" }));
     expect(await screen.findByRole("dialog", { name: "QR code do registro" })).toBeInTheDocument();
     expect(screen.getByTitle("QR code do registro de Ana Souza")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Link público do registro" })).toHaveValue(publicLink);
+    expect(screen.getByRole("link", { name: "Abrir link" })).toHaveAttribute("href", publicLink);
+    await userEvent.click(screen.getByRole("button", { name: "Copiar link" }));
+    expect(writeText).toHaveBeenCalledWith(publicLink);
+    expect(await screen.findByRole("status")).toHaveTextContent("Link de Ana Souza copiado.");
   });
 });

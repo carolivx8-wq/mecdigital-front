@@ -231,6 +231,16 @@ export function AdminPanel() {
     }
   }
 
+  async function copyPublicLink(record: AdminRecord) {
+    if (!record.publicLink) return;
+    try {
+      await navigator.clipboard.writeText(record.publicLink);
+      showSuccess(`Link de ${record.student_name} copiado.`);
+    } catch {
+      showError("Não foi possível copiar o link.");
+    }
+  }
+
   async function showQr(record: AdminRecord) {
     if (!token) return;
     setUpdatingRecordId(record.id); clearMessage();
@@ -358,7 +368,7 @@ export function AdminPanel() {
       {activeTab === "records" && <section className="admin-card"><div className="section-title"><h2>Registros cadastrados</h2><span>{records.length} resultado(s)</span></div>
         <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Link / QR</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={7}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><div className="share-actions">{record.publicLinkAvailable ? <><button className="copy-protocol" onClick={() => void sharePublicLink(record)}>Compartilhar</button><button className="table-action" onClick={() => void showQr(record)}>Ver QR</button><button className="table-action" disabled={updatingRecordId === record.id} onClick={() => void rotateLink(record)}>Renovar</button><button className="table-action danger" disabled={updatingRecordId === record.id} onClick={() => void revokeLink(record)}>Revogar</button></> : <button className="copy-protocol" disabled={updatingRecordId === record.id} onClick={() => void ensurePublicLink(record)}>Gerar link</button>}</div></td><td><button className="table-action" disabled={updatingRecordId === record.id} onClick={() => { clearProfilePhoto(); setEditing(record); setAdditionalDocuments(record.additional_documents ?? []); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button><button className={`table-action ${record.status === "active" ? "danger" : ""}`} disabled={updatingRecordId === record.id} onClick={() => void setRecordBlocked(record, record.status === "active")}>{record.status === "active" ? "Bloquear" : "Desbloquear"}</button><button type="button" className="table-action danger" disabled={updatingRecordId === record.id} onClick={() => void removeRecord(record)}>{updatingRecordId === record.id ? "Excluindo…" : "Excluir"}</button></td></tr>)}</tbody></table></div>
       </section>}
-      {shareRecord?.publicLink && <div className="modal-backdrop" role="presentation"><section className="modal qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title"><button className="modal-close" aria-label="Fechar QR code" onClick={() => setShareRecord(null)}>×</button><h2 id="qr-title">QR code do registro</h2><QRCodeSVG value={shareRecord.publicLink} size={220} level="M" marginSize={2} title={`QR code do registro de ${shareRecord.student_name}`} /><p>Ao escanear, o visitante abrirá o registro diretamente.</p><button className="primary-button" onClick={() => void sharePublicLink(shareRecord)}>Compartilhar link</button></section></div>}
+      {shareRecord?.publicLink && <div className="modal-backdrop" role="presentation"><section className="modal qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title"><button className="modal-close" aria-label="Fechar QR code" onClick={() => setShareRecord(null)}>×</button><h2 id="qr-title">QR code do registro</h2><QRCodeSVG value={shareRecord.publicLink} size={220} level="M" marginSize={2} title={`QR code do registro de ${shareRecord.student_name}`} /><p>Ao escanear, o visitante abrirá o registro diretamente.</p><label className="qr-link-field">Link público do registro<input aria-label="Link público do registro" value={shareRecord.publicLink} readOnly /></label><div className="qr-link-actions"><a className="secondary-button" href={shareRecord.publicLink} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" aria-label="Abrir link">Abrir link</a><button type="button" className="secondary-button" onClick={() => void copyPublicLink(shareRecord)}>Copiar link</button><button type="button" className="primary-button" onClick={() => void sharePublicLink(shareRecord)}>Compartilhar link</button></div></section></div>}
     </main>
   );
 }
