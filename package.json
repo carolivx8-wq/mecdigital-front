@@ -2,7 +2,9 @@
   "name": "mecdigital-front",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": ">=20.9.0" },
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,6 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
     "next": "16.2.10",
+    "qrcode.react": "4.2.0",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },

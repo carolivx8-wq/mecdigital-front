@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { createRecord, deleteBrandLogo, getBranding, listRecords, updateBrandLink, updateRecord, uploadBrandLogo } from "@/lib/api";
+import { QRCodeSVG } from "qrcode.react";
+import { createPublicLink, createRecord, deleteBrandLogo, deleteProfilePhoto, getBranding, listRecords, revokePublicLink, rotatePublicLink, updateBrandLink, updateRecord, uploadBrandLogo, uploadProfilePhoto } from "@/lib/api";
+import { processProfilePhoto, type ProcessedProfilePhoto } from "@/lib/profile-photo";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import type { AdminRecord } from "@/lib/types";
 
@@ -28,10 +30,40 @@ export function AdminPanel() {
   const [updatingRecordId, setUpdatingRecordId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"new" | "records" | "branding">("new");
   const [additionalDocuments, setAdditionalDocuments] = useState<AdditionalDocument[]>([]);
+  const [shareRecord, setShareRecord] = useState<AdminRecord | null>(null);
+  const [profilePhoto, setProfilePhoto] = useState<ProcessedProfilePhoto | null>(null);
+  const [processingPhoto, setProcessingPhoto] = useState(false);
 
   function clearMessage() { setMessage(""); setMessageKind("success"); }
   function showSuccess(text: string) { setMessage(text); setMessageKind("success"); }
   function showError(text: string) { setMessage(text); setMessageKind("error"); }
+  function clearProfilePhoto() {
+    if (profilePhoto) URL.revokeObjectURL(profilePhoto.previewUrl);
+    setProfilePhoto(null);
+  }
+
+  async function selectProfilePhoto(file: File | null) {
+    if (!file) return;
+    setProcessingPhoto(true); clearMessage();
+    try {
+      const processed = await processProfilePhoto(file);
+      clearProfilePhoto();
+      setProfilePhoto(processed);
+    } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível processar a foto."); }
+    finally { setProcessingPhoto(false); }
+  }
+
+  async function removeExistingProfilePhoto() {
+    if (!token || !editing?.profilePhotoUrl || !confirm("Remover a foto de perfil deste registro?")) return;
+    setLoading(true); clearMessage();
+    try {
+      await deleteProfilePhoto(token, editing.id);
+      setEditing({ ...editing, profilePhotoUrl: null });
+      await refresh(token);
+      showSuccess("Foto de perfil removida.");
+    } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível remover a foto."); }
+    finally { setLoading(false); }
+  }
 
   async function refresh(accessToken: string) {
     setRecords(await listRecords(accessToken));
@@ -104,9 +136,24 @@ export function AdminPanel() {
       additional_documents: additionalDocuments
     };
     try {
-      if (editing) { await updateRecord(token, editing.id, body); showSuccess("Registro atualizado com sucesso."); }
-      else { const result = await createRecord(token, body); setProtocol(result.protocol); showSuccess("Registro criado com sucesso. O protocolo também está disponível na aba Registros."); setActiveTab("records"); }
-      setEditing(null); setAdditionalDocuments([]); setFormVersion((value) => value + 1); await refresh(token);
+      let savedRecord: AdminRecord;
+      if (editing) savedRecord = await updateRecord(token, editing.id, body);
+      else {
+        const result = await createRecord(token, body);
+        savedRecord = result.record;
+        setProtocol(result.protocol);
+      }
+      if (profilePhoto) {
+        try { await uploadProfilePhoto(token, savedRecord.id, profilePhoto.blob); }
+        catch (error) {
+          setEditing(savedRecord);
+          await refresh(token);
+          showError(`Registro salvo, mas a foto não foi enviada. ${error instanceof Error ? error.message : "Tente novamente."}`);
+          return;
+        }
+      }
+      showSuccess(editing ? "Registro atualizado com sucesso." : "Registro criado com sucesso. O protocolo também está disponível na aba Registros.");
+      clearProfilePhoto(); setEditing(null); setAdditionalDocuments([]); setFormVersion((value) => value + 1); setActiveTab("records"); await refresh(token);
     } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível salvar."); }
     finally { setLoading(false); }
   }
@@ -131,6 +178,76 @@ export function AdminPanel() {
       await navigator.clipboard.writeText(record.protocol);
       showSuccess(`Protocolo de ${record.student_name} copiado.`);
     } catch { showError("Não foi possível copiar o protocolo. Tente novamente."); }
+  }
+
+  async function ensurePublicLink(record: AdminRecord) {
+    if (!token) return;
+    setUpdatingRecordId(record.id); clearMessage();
+    try {
+      const result = await createPublicLink(token, record.id);
+      await refresh(token);
+      showSuccess(`Link público de ${record.student_name} gerado.`);
+      setShareRecord({ ...record, publicLink: result.url });
+    } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível gerar o link."); }
+    finally { setUpdatingRecordId(null); }
+  }
+
+  async function sharePublicLink(record: AdminRecord) {
+    let url = record.publicLink;
+    try {
+      if (!url) {
+        if (!token) return;
+        url = (await createPublicLink(token, record.id)).url;
+        await refresh(token);
+      }
+      if (navigator.share) await navigator.share({ title: "Registro MecDigital", text: `Registro de ${record.student_name}`, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        showSuccess(`Link de ${record.student_name} copiado.`);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      try {
+        if (!url) throw error;
+        await navigator.clipboard.writeText(url);
+        showSuccess(`Link de ${record.student_name} copiado.`);
+      } catch { showError("Não foi possível compartilhar ou copiar o link."); }
+    }
+  }
+
+  async function showQr(record: AdminRecord) {
+    if (!token) return;
+    setUpdatingRecordId(record.id); clearMessage();
+    try {
+      const result = await createPublicLink(token, record.id);
+      await refresh(token);
+      setShareRecord({ ...record, publicLink: result.url, publicLinkAvailable: true });
+    } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível abrir o QR code."); }
+    finally { setUpdatingRecordId(null); }
+  }
+
+  async function rotateLink(record: AdminRecord) {
+    if (!token || !confirm(`Gerar um novo link para ${record.student_name}? O link atual deixará de funcionar.`)) return;
+    setUpdatingRecordId(record.id); clearMessage();
+    try {
+      const result = await rotatePublicLink(token, record.id);
+      await refresh(token);
+      setShareRecord({ ...record, publicLink: result.url });
+      showSuccess(`Novo link de ${record.student_name} gerado.`);
+    } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível renovar o link."); }
+    finally { setUpdatingRecordId(null); }
+  }
+
+  async function revokeLink(record: AdminRecord) {
+    if (!token || !confirm(`Revogar o link público de ${record.student_name}?`)) return;
+    setUpdatingRecordId(record.id); clearMessage();
+    try {
+      await revokePublicLink(token, record.id);
+      await refresh(token);
+      setShareRecord(null);
+      showSuccess(`Link de ${record.student_name} revogado.`);
+    } catch (error) { showError(error instanceof Error ? error.message : "Não foi possível revogar o link."); }
+    finally { setUpdatingRecordId(null); }
   }
 
   if (!token) return (
@@ -171,6 +288,23 @@ export function AdminPanel() {
       </section>}
       {activeTab === "new" && <section className="admin-card"><h2>{editing ? "Editar registro" : "Novo registro"}</h2>
         <form key={`${editing?.id ?? "new"}-${formVersion}`} className="record-form" onSubmit={save}>
+          <div className="profile-photo-field wide">
+            <div className="profile-photo-preview">
+              {(profilePhoto?.previewUrl || editing?.profilePhotoUrl)
+                ? <img src={profilePhoto?.previewUrl ?? editing?.profilePhotoUrl ?? ""} alt="Prévia da foto de perfil" />
+                : <span aria-hidden="true">Sem foto</span>}
+            </div>
+            <div className="profile-photo-controls">
+              <label>Foto de perfil
+                <input type="file" accept="image/jpeg,image/png,image/webp" disabled={processingPhoto || loading} onChange={(event) => void selectProfilePhoto(event.target.files?.[0] ?? null)} />
+              </label>
+              <small>JPG, PNG ou WebP até 10 MB. A imagem será recortada, reduzida para 1024 × 1024 e convertida para WebP.</small>
+              {processingPhoto && <span role="status">Otimizando foto…</span>}
+              {profilePhoto && <span className="compression-result">Reduzida de {(profilePhoto.originalBytes / 1024).toFixed(0)} KB para {(profilePhoto.processedBytes / 1024).toFixed(0)} KB.</span>}
+              {profilePhoto && <button type="button" className="text-button" onClick={clearProfilePhoto}>Descartar nova foto</button>}
+              {!profilePhoto && editing?.profilePhotoUrl && <button type="button" className="text-button danger" onClick={() => void removeExistingProfilePhoto()}>Remover foto atual</button>}
+            </div>
+          </div>
           <label className="wide">Nome do aluno<input name="student_name" defaultValue={String(initial.student_name)} required /></label>
           <label>Data de nascimento<input name="birth_date" type="date" defaultValue={String(initial.birth_date)} required /></label>
           <label>Tipo de documento<select name="document_type" defaultValue={String(initial.document_type)}><option>RG</option><option>RNE</option><option>CPF</option><option value="OTHER">Outro</option></select></label>
@@ -202,12 +336,13 @@ export function AdminPanel() {
           <label className="wide">Ato de criação<textarea name="institution_creation_act" defaultValue={String(initial.institution_creation_act)} /></label>
           <label className="wide">Publicação<textarea name="publication_text" defaultValue={String(initial.publication_text)} /></label>
           <label className="wide">Observações<textarea name="notes" defaultValue={String(initial.notes)} /></label>
-          <div className="form-actions wide"><button className="primary-button" disabled={loading}>{loading ? "Salvando…" : editing ? "Salvar alterações" : "Criar e gerar protocolo"}</button>{editing && <button type="button" className="secondary-button" onClick={() => { setEditing(null); setAdditionalDocuments([]); setFormVersion((value) => value + 1); }}>Cancelar</button>}</div>
+          <div className="form-actions wide"><button className="primary-button" disabled={loading || processingPhoto}>{processingPhoto ? "Otimizando foto…" : loading ? "Salvando…" : editing ? "Salvar alterações" : "Criar e gerar protocolo"}</button>{editing && <button type="button" className="secondary-button" onClick={() => { clearProfilePhoto(); setEditing(null); setAdditionalDocuments([]); setFormVersion((value) => value + 1); }}>Cancelar</button>}</div>
         </form>
       </section>}
       {activeTab === "records" && <section className="admin-card"><div className="section-title"><h2>Registros cadastrados</h2><span>{records.length} resultado(s)</span></div>
-        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={6}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><button className="table-action" onClick={() => { setEditing(record); setAdditionalDocuments(record.additional_documents ?? []); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button><button className={`table-action ${record.status === "active" ? "danger" : ""}`} disabled={updatingRecordId === record.id} onClick={() => void setRecordBlocked(record, record.status === "active")}>{record.status === "active" ? "Bloquear" : "Desbloquear"}</button></td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Link / QR</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={7}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><div className="share-actions">{record.publicLinkAvailable ? <><button className="copy-protocol" onClick={() => void sharePublicLink(record)}>Compartilhar</button><button className="table-action" onClick={() => void showQr(record)}>Ver QR</button><button className="table-action" disabled={updatingRecordId === record.id} onClick={() => void rotateLink(record)}>Renovar</button><button className="table-action danger" disabled={updatingRecordId === record.id} onClick={() => void revokeLink(record)}>Revogar</button></> : <button className="copy-protocol" disabled={updatingRecordId === record.id} onClick={() => void ensurePublicLink(record)}>Gerar link</button>}</div></td><td><button className="table-action" onClick={() => { clearProfilePhoto(); setEditing(record); setAdditionalDocuments(record.additional_documents ?? []); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button><button className={`table-action ${record.status === "active" ? "danger" : ""}`} disabled={updatingRecordId === record.id} onClick={() => void setRecordBlocked(record, record.status === "active")}>{record.status === "active" ? "Bloquear" : "Desbloquear"}</button></td></tr>)}</tbody></table></div>
       </section>}
+      {shareRecord?.publicLink && <div className="modal-backdrop" role="presentation"><section className="modal qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title"><button className="modal-close" aria-label="Fechar QR code" onClick={() => setShareRecord(null)}>×</button><h2 id="qr-title">QR code do registro</h2><QRCodeSVG value={shareRecord.publicLink} size={220} level="M" marginSize={2} title={`QR code do registro de ${shareRecord.student_name}`} /><p>Ao escanear, o visitante abrirá o registro diretamente.</p><button className="primary-button" onClick={() => void sharePublicLink(shareRecord)}>Compartilhar link</button></section></div>}
     </main>
   );
 }

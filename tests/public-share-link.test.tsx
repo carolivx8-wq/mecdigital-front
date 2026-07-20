@@ -1,0 +1,39 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { PublicLookup } from "@/components/PublicLookup";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  window.history.replaceState(null, "", "/");
+});
+
+describe("public shared link", () => {
+  it("resolves the fragment by POST, removes it from the URL and does not ask for a protocol", async () => {
+    const token = "A".repeat(43);
+    window.history.replaceState(null, "", `/registro/compartilhado#${token}`);
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: {
+      consultedAt: "2026-07-20T12:00:00.000Z",
+      student: { name: "Ana Souza", birthDate: "1990-01-01", documentType: "RG", documentNumber: "123456", documents: [], motherName: null, fatherName: null, educationLevel: "Superior", completionDate: "2025-01-01", notes: null },
+      institution: { name: "Instituição Exemplo", creationAct: null, publicationText: null },
+      downloads: { pdf: "blocked", xml: "blocked" }
+    } }), { status: 200 }));
+
+    render(<PublicLookup direct />);
+
+    expect(screen.queryByLabelText(/número do protocolo/i)).not.toBeInTheDocument();
+    expect(await screen.findByText("Ana Souza")).toBeInTheDocument();
+    expect(window.location.hash).toBe("");
+    expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/public-links/resolve"), expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ token })
+    }));
+  });
+
+  it("shows a safe error for a malformed link without calling the API", async () => {
+    window.history.replaceState(null, "", "/registro/compartilhado#curto");
+    const fetchSpy = vi.spyOn(global, "fetch");
+    render(<PublicLookup direct />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Link público inválido ou revogado.");
+    await waitFor(() => expect(fetchSpy).not.toHaveBeenCalled());
+  });
+});

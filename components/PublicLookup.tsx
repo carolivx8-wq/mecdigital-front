@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { ApiError, attemptDownload, lookupProtocol } from "@/lib/api";
+import { FormEvent, useEffect, useState } from "react";
+import { ApiError, attemptDownload, lookupProtocol, resolvePublicLink } from "@/lib/api";
 import type { PublicRecord } from "@/lib/types";
 
 function DataLine({ label, value }: { label: string; value: string | null }) {
@@ -17,15 +17,37 @@ function formatConsultedAt(value: string) {
   return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "medium" });
 }
 
-export function PublicLookup() {
+export function PublicLookup({ direct = false }: { direct?: boolean }) {
   const [protocol, setProtocol] = useState("");
   const [record, setRecord] = useState<PublicRecord | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [directToken, setDirectToken] = useState("");
   const documents = record?.student.documents?.length
     ? record.student.documents
     : record ? [{ type: record.student.documentType, number: record.student.documentNumber }] : [];
+
+  async function loadDirectRecord(token: string) {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
+      setMessage("Link público inválido ou revogado.");
+      return;
+    }
+    setLoading(true); setMessage("");
+    try { setRecord(await resolvePublicLink(token)); }
+    catch (error) {
+      if (error instanceof ApiError && error.code === "PROTOCOL_BLOCKED") setModalOpen(true);
+      else setMessage(error instanceof Error ? error.message : "Não foi possível abrir este registro.");
+    } finally { setLoading(false); }
+  }
+
+  useEffect(() => {
+    if (!direct) return;
+    const token = window.location.hash.slice(1);
+    setDirectToken(token);
+    window.history.replaceState(null, "", window.location.pathname);
+    void loadDirectRecord(token);
+  }, [direct]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -61,15 +83,17 @@ export function PublicLookup() {
         <span className="eyebrow">Consulta pública</span>
         <h1 id="lookup-title" className="lookup-title"><span>Valide seu registro com</span><small>número de protocolo</small></h1>
         <p>Digite o protocolo fornecido pela sua instituição para visualizar as informações disponíveis.</p>
-        <form className="lookup-form" onSubmit={submit}>
+        {!direct && <form className="lookup-form" onSubmit={submit}>
           <label htmlFor="protocol">Número do protocolo</label>
           <div className="input-row">
             <input id="protocol" name="protocol" value={protocol} onChange={(event) => setProtocol(event.target.value)} placeholder="MEC-000000000000000000000000" autoComplete="off" required aria-describedby="protocol-help" />
             <button className="primary-button" disabled={loading}>{loading ? "Consultando…" : "Consultar"}</button>
           </div>
           <small id="protocol-help">O protocolo possui o prefixo MEC seguido de 24 caracteres.</small>
-        </form>
+        </form>}
+        {direct && loading && <p role="status">Carregando registroâ€¦</p>}
         {message && <div className="alert error" role="alert">{message}</div>}
+        {direct && message && directToken && <button className="secondary-button" type="button" onClick={() => void loadDirectRecord(directToken)}>Tentar novamente</button>}
       </section>
 
       {record && (
@@ -78,6 +102,7 @@ export function PublicLookup() {
           <div className="record-grid">
             <article className="data-card">
               <h2>Dados do aluno</h2>
+              {record.student.profilePhotoUrl && <img className="public-profile-photo" src={record.student.profilePhotoUrl} alt={`Foto de perfil de ${record.student.name}`} />}
               <DataLine label="Nome" value={record.student.name} />
               <DataLine label="Data de nascimento" value={formatDate(record.student.birthDate)} />
               {documents.map((document, index) => (
@@ -99,10 +124,10 @@ export function PublicLookup() {
           <div className="download-panel">
             <h2>Documentos digitais</h2>
             <p>Escolha o formato desejado para solicitar o documento.</p>
-            <div className="download-actions">
+            {!direct && <div className="download-actions">
               <button className="download-button" onClick={() => download("pdf")}><span>PDF</span> Baixar em PDF</button>
               <button className="download-button" onClick={() => download("xml")}><span>XML</span> Baixar em XML</button>
-            </div>
+            </div>}
             {record.consultedAt && <p className="consulted-at"><strong>Consulta realizada em:</strong> {formatConsultedAt(record.consultedAt)}</p>}
             <a className="back-to-top" href="#conteudo">↑ Voltar ao topo</a>
           </div>

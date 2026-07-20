@@ -24,6 +24,11 @@ export async function lookupProtocol(protocol: string): Promise<PublicRecord> {
   return payload.data;
 }
 
+export async function resolvePublicLink(token: string): Promise<PublicRecord> {
+  const payload = await call<{ data: PublicRecord }>("/api/v1/public-links/resolve", { method: "POST", body: JSON.stringify({ token }) });
+  return payload.data;
+}
+
 export async function attemptDownload(protocol: string, format: "pdf" | "xml") {
   return call("/api/v1/protocols/download-attempt", { method: "POST", body: JSON.stringify({ protocol, format }) });
 }
@@ -73,4 +78,34 @@ export async function createRecord(token: string, body: Record<string, unknown>)
 export async function updateRecord(token: string, id: string, body: Record<string, unknown>): Promise<AdminRecord> {
   const payload = await call<{ data: AdminRecord }>(`/api/v1/admin/records/${id}`, { method: "PATCH", headers: adminHeaders(token), body: JSON.stringify(body) });
   return payload.data;
+}
+
+export async function createPublicLink(token: string, id: string): Promise<{ url: string; createdAt: string }> {
+  const payload = await call<{ data: { url: string; createdAt: string } }>(`/api/v1/admin/records/${id}/public-link`, { method: "PUT", headers: adminHeaders(token) });
+  return payload.data;
+}
+
+export async function rotatePublicLink(token: string, id: string): Promise<{ url: string; createdAt: string }> {
+  const payload = await call<{ data: { url: string; createdAt: string } }>(`/api/v1/admin/records/${id}/public-link/rotate`, { method: "POST", headers: adminHeaders(token) });
+  return payload.data;
+}
+
+export async function revokePublicLink(token: string, id: string): Promise<void> {
+  await call(`/api/v1/admin/records/${id}/public-link`, { method: "DELETE", headers: adminHeaders(token) });
+}
+
+export async function uploadProfilePhoto(token: string, id: string, photo: Blob): Promise<{ profilePhotoUrl: string }> {
+  const response = await fetch(`${API_URL}/api/v1/admin/records/${id}/profile-photo`, {
+    method: "PUT",
+    cache: "no-store",
+    headers: { authorization: `Bearer ${token}`, "content-type": "image/webp" },
+    body: photo
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError(response.status, payload?.error?.code ?? "PHOTO_UPLOAD_FAILED", payload?.error?.message ?? "Não foi possível enviar a foto.");
+  return payload.data;
+}
+
+export async function deleteProfilePhoto(token: string, id: string): Promise<void> {
+  await call(`/api/v1/admin/records/${id}/profile-photo`, { method: "DELETE", headers: adminHeaders(token) });
 }

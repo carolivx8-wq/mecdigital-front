@@ -2,6 +2,7 @@ export interface PublicRecord {
   consultedAt?: string;
   student: {
     name: string;
+    profilePhotoUrl: string | null;
     birthDate: string;
     documentType: string;
     documentNumber: string;
@@ -19,6 +20,9 @@ export interface PublicRecord {
 export interface AdminRecord {
   id: string;
   protocol: string | null;
+  publicLink: string | null;
+  publicLinkAvailable?: boolean;
+  profilePhotoUrl: string | null;
   status: "active" | "archived";
   student_name: string;
   birth_date: string;
