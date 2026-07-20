@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { createPublicLink, createRecord, deleteBrandLogo, deleteProfilePhoto, getBranding, listRecords, revokePublicLink, rotatePublicLink, updateBrandLink, updateRecord, uploadBrandLogo, uploadProfilePhoto } from "@/lib/api";
+import { createPublicLink, createRecord, deleteBrandLogo, deleteProfilePhoto, deleteRecord, getBranding, listRecords, revokePublicLink, rotatePublicLink, updateBrandLink, updateRecord, uploadBrandLogo, uploadProfilePhoto } from "@/lib/api";
 import { processProfilePhoto, type ProcessedProfilePhoto } from "@/lib/profile-photo";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import type { AdminRecord } from "@/lib/types";
@@ -167,6 +167,22 @@ export function AdminPanel() {
       showSuccess(`Registro de ${record.student_name} ${blocked ? "bloqueado" : "desbloqueado"} com sucesso.`);
     } catch (error) {
       showError(error instanceof Error ? error.message : "Não foi possível atualizar o status do registro.");
+    } finally {
+      setUpdatingRecordId(null);
+    }
+  }
+
+  async function removeRecord(record: AdminRecord) {
+    if (!token || updatingRecordId === record.id || !confirm(`Excluir permanentemente o registro de ${record.student_name}? Esta ação não pode ser desfeita.`)) return;
+    setUpdatingRecordId(record.id); clearMessage();
+    try {
+      await deleteRecord(token, record.id);
+      if (editing?.id === record.id) { clearProfilePhoto(); setEditing(null); setAdditionalDocuments([]); setFormVersion((value) => value + 1); }
+      if (shareRecord?.id === record.id) setShareRecord(null);
+      await refresh(token);
+      showSuccess(`Registro de ${record.student_name} excluído permanentemente.`);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Não foi possível excluir o registro.");
     } finally {
       setUpdatingRecordId(null);
     }
@@ -340,7 +356,7 @@ export function AdminPanel() {
         </form>
       </section>}
       {activeTab === "records" && <section className="admin-card"><div className="section-title"><h2>Registros cadastrados</h2><span>{records.length} resultado(s)</span></div>
-        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Link / QR</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={7}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><div className="share-actions">{record.publicLinkAvailable ? <><button className="copy-protocol" onClick={() => void sharePublicLink(record)}>Compartilhar</button><button className="table-action" onClick={() => void showQr(record)}>Ver QR</button><button className="table-action" disabled={updatingRecordId === record.id} onClick={() => void rotateLink(record)}>Renovar</button><button className="table-action danger" disabled={updatingRecordId === record.id} onClick={() => void revokeLink(record)}>Revogar</button></> : <button className="copy-protocol" disabled={updatingRecordId === record.id} onClick={() => void ensurePublicLink(record)}>Gerar link</button>}</div></td><td><button className="table-action" onClick={() => { clearProfilePhoto(); setEditing(record); setAdditionalDocuments(record.additional_documents ?? []); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button><button className={`table-action ${record.status === "active" ? "danger" : ""}`} disabled={updatingRecordId === record.id} onClick={() => void setRecordBlocked(record, record.status === "active")}>{record.status === "active" ? "Bloquear" : "Desbloquear"}</button></td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table><thead><tr><th>Aluno</th><th>Instituição</th><th>Conclusão</th><th>Status</th><th>Protocolo</th><th>Link / QR</th><th>Ações</th></tr></thead><tbody>{records.length === 0 ? <tr><td colSpan={7}>Nenhum registro cadastrado.</td></tr> : records.map((record) => <tr key={record.id}><td>{record.student_name}</td><td>{record.institution_name}</td><td>{new Date(`${record.completion_date}T00:00:00`).toLocaleDateString("pt-BR")}</td><td><span className={`status ${record.status}`}>{record.status === "active" ? "Ativo" : "Bloqueado"}</span></td><td>{record.protocol ? <button className="copy-protocol" onClick={() => void copyProtocol(record)}>Copiar protocolo</button> : <span className="protocol-unavailable">Indisponível</span>}</td><td><div className="share-actions">{record.publicLinkAvailable ? <><button className="copy-protocol" onClick={() => void sharePublicLink(record)}>Compartilhar</button><button className="table-action" onClick={() => void showQr(record)}>Ver QR</button><button className="table-action" disabled={updatingRecordId === record.id} onClick={() => void rotateLink(record)}>Renovar</button><button className="table-action danger" disabled={updatingRecordId === record.id} onClick={() => void revokeLink(record)}>Revogar</button></> : <button className="copy-protocol" disabled={updatingRecordId === record.id} onClick={() => void ensurePublicLink(record)}>Gerar link</button>}</div></td><td><button className="table-action" disabled={updatingRecordId === record.id} onClick={() => { clearProfilePhoto(); setEditing(record); setAdditionalDocuments(record.additional_documents ?? []); setActiveTab("new"); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Editar</button><button className={`table-action ${record.status === "active" ? "danger" : ""}`} disabled={updatingRecordId === record.id} onClick={() => void setRecordBlocked(record, record.status === "active")}>{record.status === "active" ? "Bloquear" : "Desbloquear"}</button><button type="button" className="table-action danger" disabled={updatingRecordId === record.id} onClick={() => void removeRecord(record)}>{updatingRecordId === record.id ? "Excluindo…" : "Excluir"}</button></td></tr>)}</tbody></table></div>
       </section>}
       {shareRecord?.publicLink && <div className="modal-backdrop" role="presentation"><section className="modal qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title"><button className="modal-close" aria-label="Fechar QR code" onClick={() => setShareRecord(null)}>×</button><h2 id="qr-title">QR code do registro</h2><QRCodeSVG value={shareRecord.publicLink} size={220} level="M" marginSize={2} title={`QR code do registro de ${shareRecord.student_name}`} /><p>Ao escanear, o visitante abrirá o registro diretamente.</p><button className="primary-button" onClick={() => void sharePublicLink(shareRecord)}>Compartilhar link</button></section></div>}
     </main>

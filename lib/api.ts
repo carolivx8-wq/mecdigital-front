@@ -80,6 +80,10 @@ export async function updateRecord(token: string, id: string, body: Record<strin
   return payload.data;
 }
 
+export async function deleteRecord(token: string, id: string): Promise<void> {
+  await call(`/api/v1/admin/records/${id}`, { method: "DELETE", headers: adminHeaders(token) });
+}
+
 export async function createPublicLink(token: string, id: string): Promise<{ url: string; createdAt: string }> {
   const payload = await call<{ data: { url: string; createdAt: string } }>(`/api/v1/admin/records/${id}/public-link`, { method: "PUT", headers: adminHeaders(token) });
   return payload.data;
