@@ -27,6 +27,19 @@ export function PublicLookup({ direct = false }: { direct?: boolean }) {
   const documents = record?.student.documents?.length
     ? record.student.documents
     : record ? [{ type: record.student.documentType, number: record.student.documentNumber }] : [];
+  const hero = direct
+    ? {
+      eyebrow: "Registro validado via QR Code",
+      title: "Dados conferidos pela instituição",
+      subtitle: "",
+      description: "Este registro foi aberto por um QR Code autorizado pela instituição. Confira abaixo os dados disponíveis para validação."
+    }
+    : {
+      eyebrow: "Consulta pública",
+      title: "Valide seu registro com",
+      subtitle: "número de protocolo",
+      description: "Digite o protocolo fornecido pela sua instituição para visualizar as informações disponíveis."
+    };
 
   async function loadDirectRecord(token: string) {
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
@@ -84,9 +97,9 @@ export function PublicLookup({ direct = false }: { direct?: boolean }) {
   return (
     <main id="conteudo" className="container public-main">
       <section className="lookup-hero" aria-labelledby="lookup-title">
-        <span className="eyebrow">Consulta pública</span>
-        <h1 id="lookup-title" className="lookup-title"><span>Valide seu registro com</span><small>número de protocolo</small></h1>
-        <p>Digite o protocolo fornecido pela sua instituição para visualizar as informações disponíveis.</p>
+        <span className="eyebrow">{hero.eyebrow}</span>
+        <h1 id="lookup-title" className="lookup-title"><span>{hero.title}</span>{hero.subtitle && <small>{hero.subtitle}</small>}</h1>
+        <p>{hero.description}</p>
         {!direct && <form className="lookup-form" onSubmit={submit}>
           <label htmlFor="protocol">Número do protocolo</label>
           <div className="input-row">
@@ -106,7 +119,7 @@ export function PublicLookup({ direct = false }: { direct?: boolean }) {
           <div className="record-grid">
             <article className="data-card">
               <h2>Dados do aluno</h2>
-              {record.student.profilePhotoUrl && <img className="public-profile-photo" src={record.student.profilePhotoUrl} alt={`Foto de perfil de ${record.student.name}`} />}
+              {record.student.profilePhotoUrl && <img className="public-profile-photo" src={record.student.profilePhotoUrl} alt={`Foto de perfil de ${record.student.name}`} width={120} height={160} />}
               <DataLine label="Nome" value={record.student.name} />
               <DataLine label="Data de nascimento" value={formatDate(record.student.birthDate)} />
               {documents.map((document, index) => (
@@ -127,7 +140,7 @@ export function PublicLookup({ direct = false }: { direct?: boolean }) {
           </div>
           <div className="download-panel">
             <h2>Documentos digitais</h2>
-            <p>Escolha o formato desejado para solicitar o documento.</p>
+            <p>Escolha o formato desejado para baixar o documento.</p>
             <div className="download-actions">
               <button className="download-button" onClick={() => download("pdf")}><span>PDF</span> Baixar em PDF</button>
               <button className="download-button" onClick={() => download("xml")}><span>XML</span> Baixar em XML</button>

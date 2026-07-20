@@ -38,6 +38,8 @@ describe("PublicLookup", () => {
     await userEvent.click(screen.getByRole("button", { name: "Consultar" }));
     expect(await screen.findByText("Samara Maria Teixeira Fernandes")).toBeInTheDocument();
     expect(screen.getByText(/consulta realizada em/i).closest("p")).toHaveTextContent("19/07/2026");
+    expect(screen.getByText("Escolha o formato desejado para baixar o documento.")).toBeInTheDocument();
+    expect(screen.queryByText("Escolha o formato desejado para solicitar o documento.")).not.toBeInTheDocument();
     const consultedAt = screen.getByText(/consulta realizada em/i);
     const pdfButton = screen.getByRole("button", { name: /baixar em pdf/i });
     const backToTop = screen.getByRole("link", { name: /voltar ao topo/i });

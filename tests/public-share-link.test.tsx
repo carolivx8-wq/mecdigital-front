@@ -14,16 +14,24 @@ describe("public shared link", () => {
     window.history.replaceState(null, "", `/registro/compartilhado#${token}`);
     vi.spyOn(global, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: {
       consultedAt: "2026-07-20T12:00:00.000Z",
-      student: { name: "Ana Souza", birthDate: "1990-01-01", documentType: "RG", documentNumber: "123456", documents: [], motherName: null, fatherName: null, educationLevel: "Superior", completionDate: "2025-01-01", notes: null },
+      student: { name: "Ana Souza", birthDate: "1990-01-01", documentType: "RG", documentNumber: "123456", documents: [], motherName: null, fatherName: null, educationLevel: "Superior", completionDate: "2025-01-01", notes: null, profilePhotoUrl: "https://example.com/foto.webp" },
       institution: { name: "Instituição Exemplo", creationAct: null, publicationText: null },
       downloads: { pdf: "blocked", xml: "blocked" }
     } }), { status: 200 }));
 
     render(<PublicLookup direct />);
 
+    expect(await screen.findByText("Registro validado via QR Code")).toBeInTheDocument();
+    expect(screen.getByText("Este registro foi aberto por um QR Code autorizado pela instituição. Confira abaixo os dados disponíveis para validação.")).toBeInTheDocument();
+    expect(screen.queryByText("Consulta pública")).not.toBeInTheDocument();
+
     expect(screen.queryByLabelText(/número do protocolo/i)).not.toBeInTheDocument();
     expect(await screen.findByText("Ana Souza")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Foto de perfil de Ana Souza" })).toHaveAttribute("width", "120");
+    expect(screen.getByRole("img", { name: "Foto de perfil de Ana Souza" })).toHaveAttribute("height", "160");
     expect(screen.getByRole("button", { name: /Baixar em PDF/ })).toBeInTheDocument();
+    expect(screen.getByText("Escolha o formato desejado para baixar o documento.")).toBeInTheDocument();
+    expect(screen.queryByText("Escolha o formato desejado para solicitar o documento.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Baixar em XML/ })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Baixar em PDF/ }));
     expect(await screen.findByRole("dialog", { name: "Registro bloqueado temporariamente!" })).toBeInTheDocument();
@@ -39,6 +47,10 @@ describe("public shared link", () => {
     window.history.replaceState(null, "", "/registro/compartilhado#curto");
     const fetchSpy = vi.spyOn(global, "fetch");
     render(<PublicLookup direct />);
+
+    expect(await screen.findByText("Registro validado via QR Code")).toBeInTheDocument();
+    expect(screen.getByText("Este registro foi aberto por um QR Code autorizado pela instituição. Confira abaixo os dados disponíveis para validação.")).toBeInTheDocument();
+    expect(screen.queryByText("Consulta pública")).not.toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent("Link público inválido ou revogado.");
     await waitFor(() => expect(fetchSpy).not.toHaveBeenCalled());
   });
