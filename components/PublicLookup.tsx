@@ -141,7 +141,7 @@ export function PublicLookup({ direct = false }: { direct?: boolean }) {
           </div>
           <div className="download-panel">
             <h2>Documentos digitais</h2>
-            <p>Escolha o formato desejado para baixar o documento.</p>
+            <p>Escolha o formato desejado para baixar os documentos</p>
             <div className="download-actions">
               <button className="download-button" onClick={() => download("pdf")}><span>PDF</span> Baixar em PDF</button>
               <button className="download-button" onClick={() => download("xml")}><span>XML</span> Baixar em XML</button>

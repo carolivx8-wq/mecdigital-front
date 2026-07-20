@@ -32,7 +32,7 @@ describe("public shared link", () => {
     expect(screen.getByRole("img", { name: "Foto de perfil de Ana Souza" })).toHaveAttribute("height", "160");
     expect(screen.getByRole("button", { name: /Baixar em PDF/ })).toBeInTheDocument();
     expect(screen.getByLabelText("Data e Hora da Consulta: 20/07/2026 às 09:00:00")).toHaveTextContent("Data e Hora da Consulta:20/07/2026 às 09:00:00");
-    expect(screen.getByText("Escolha o formato desejado para baixar o documento.")).toBeInTheDocument();
+    expect(screen.getByText("Escolha o formato desejado para baixar os documentos")).toBeInTheDocument();
     expect(screen.queryByText("Escolha o formato desejado para solicitar o documento.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Baixar em XML/ })).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Baixar em PDF/ }));

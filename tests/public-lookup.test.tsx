@@ -40,7 +40,7 @@ describe("PublicLookup", () => {
     const consultationStamp = screen.getByLabelText("Data e Hora da Consulta: 19/07/2026 às 12:42:30");
     expect(consultationStamp).toHaveTextContent("Data e Hora da Consulta:");
     expect(consultationStamp).toHaveTextContent("19/07/2026 às 12:42:30");
-    expect(screen.getByText("Escolha o formato desejado para baixar o documento.")).toBeInTheDocument();
+    expect(screen.getByText("Escolha o formato desejado para baixar os documentos")).toBeInTheDocument();
     expect(screen.queryByText("Escolha o formato desejado para solicitar o documento.")).not.toBeInTheDocument();
     const consultedAt = screen.getByText(/data e hora da consulta/i);
     const pdfButton = screen.getByRole("button", { name: /baixar em pdf/i });
