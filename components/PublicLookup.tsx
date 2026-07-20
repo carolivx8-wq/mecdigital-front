@@ -70,6 +70,10 @@ export function PublicLookup({ direct = false }: { direct?: boolean }) {
   }
 
   async function download(format: "pdf" | "xml") {
+    if (direct) {
+      setModalOpen(true);
+      return;
+    }
     try { await attemptDownload(protocol.trim().toUpperCase(), format); }
     catch (error) {
       if (error instanceof ApiError && error.code === "PROTOCOL_BLOCKED") setModalOpen(true);
@@ -124,10 +128,10 @@ export function PublicLookup({ direct = false }: { direct?: boolean }) {
           <div className="download-panel">
             <h2>Documentos digitais</h2>
             <p>Escolha o formato desejado para solicitar o documento.</p>
-            {!direct && <div className="download-actions">
+            <div className="download-actions">
               <button className="download-button" onClick={() => download("pdf")}><span>PDF</span> Baixar em PDF</button>
               <button className="download-button" onClick={() => download("xml")}><span>XML</span> Baixar em XML</button>
-            </div>}
+            </div>
             {record.consultedAt && <p className="consulted-at"><strong>Consulta realizada em:</strong> {formatConsultedAt(record.consultedAt)}</p>}
             <a className="back-to-top" href="#conteudo">↑ Voltar ao topo</a>
           </div>

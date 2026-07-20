@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PublicLookup } from "@/components/PublicLookup";
 
@@ -22,11 +23,16 @@ describe("public shared link", () => {
 
     expect(screen.queryByLabelText(/número do protocolo/i)).not.toBeInTheDocument();
     expect(await screen.findByText("Ana Souza")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Baixar em PDF/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Baixar em XML/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Baixar em PDF/ }));
+    expect(await screen.findByRole("dialog", { name: "Registro bloqueado temporariamente!" })).toBeInTheDocument();
     expect(window.location.hash).toBe("");
     expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/public-links/resolve"), expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ token })
     }));
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("shows a safe error for a malformed link without calling the API", async () => {
